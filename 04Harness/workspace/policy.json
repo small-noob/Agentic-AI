@@ -1,0 +1,53 @@
+{
+  "version": "2026.08",
+  "allowed_hours": {
+    "start": "08:00",
+    "end": "20:00",
+    "note": "start inclusive, end exclusive"
+  },
+  "doors": {
+    "D1": {
+      "name": "Lobby",
+      "min_clearance": 1
+    },
+    "D2": {
+      "name": "Lab",
+      "min_clearance": 2
+    },
+    "D3": {
+      "name": "ServerRoom",
+      "min_clearance": 3
+    }
+  },
+  "violation_rules": [
+    "Only records with result == 'granted' can be violations.",
+    "revoked_badge: the badge holder's status is not 'active'.",
+    "insufficient_clearance: holder clearance < door min_clearance.",
+    "outside_allowed_hours: entry hour < 8 or hour >= 20.",
+    "One record counts as ONE violation even if several rules fire."
+  ],
+  "remediation": {
+    "note": "One action per (badge_id, reason). The same action is never issued twice for the same badge, however many records triggered it.",
+    "by_reason": {
+      "revoked_badge": {
+        "action": "revoke_badge",
+        "why": "the badge is still swiping after being revoked; kill it at the reader"
+      },
+      "insufficient_clearance": {
+        "action": "open_ticket",
+        "why": "a door granted entry above the holder's level; the reader config needs review"
+      },
+      "outside_allowed_hours": {
+        "action": "notify_manager",
+        "why": "out-of-hours entry is a management matter, not a system fault"
+      }
+    },
+    "rules": [
+      "Only badges that appear in the audit findings may be acted on.",
+      "A badge's action set is the union of the actions mapped from its reasons.",
+      "notify_manager requires the manager_id of the badge holder, taken from employees.json.",
+      "open_ticket requires the door that granted the over-clearance entry.",
+      "Never issue an action that is not mapped from a reason in the findings."
+    ]
+  }
+}
