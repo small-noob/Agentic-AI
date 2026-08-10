@@ -1,0 +1,52 @@
+{
+  "employees": [
+    {
+      "badge_id": "B1001",
+      "name": "Anna Wei",
+      "clearance": 3,
+      "status": "active"
+    },
+    {
+      "badge_id": "B1002",
+      "name": "Ben Zhao",
+      "clearance": 2,
+      "status": "active"
+    },
+    {
+      "badge_id": "B1003",
+      "name": "Chen Li",
+      "clearance": 1,
+      "status": "active"
+    },
+    {
+      "badge_id": "B1004",
+      "name": "Dana Wu",
+      "clearance": 2,
+      "status": "active"
+    },
+    {
+      "badge_id": "B1005",
+      "name": "Eli Xu",
+      "clearance": 3,
+      "status": "revoked"
+    },
+    {
+      "badge_id": "B1006",
+      "name": "Fay Guo",
+      "clearance": 1,
+      "status": "active"
+    },
+    {
+      "badge_id": "B1007",
+      "name": "Gus Han",
+      "clearance": 2,
+      "status": "active"
+    },
+    {
+      "badge_id": "B1008",
+      "name": "Hui Ma",
+      "clearance": 1,
+      "status": "active"
+    }
+  ]
+}

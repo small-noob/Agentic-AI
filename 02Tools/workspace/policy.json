@@ -1,0 +1,34 @@
+{
+  "version": "2026.08",
+  "allowed_hours": {
+    "start": "08:00",
+    "end": "20:00",
+    "note": "start inclusive, end exclusive"
+  },
+  "doors": {
+    "D1": {
+      "name": "Lobby",
+      "min_clearance": 1
+    },
+    "D2": {
+      "name": "Lab",
+      "min_clearance": 2
+    },
+    "D3": {
+      "name": "ServerRoom",
+      "min_clearance": 3
+    }
+  },
+  "violation_rules": [
+    "Only records with result == 'granted' can be violations.",
+    "revoked_badge: the badge holder's status is not 'active'.",
+    "insufficient_clearance: holder clearance < door min_clearance.",
+    "outside_allowed_hours: entry hour < 8 or hour >= 20.",
+    "One record counts as ONE violation even if several rules fire."
+  ],
+  "report": {
+    "suspect": "badge_id with the most violating records",
+    "violations": "total number of violating records across all badges",
+    "code": "(violations * 9176 + suspect_badge_number * 31337) mod 1000000, six digits"
+  }
+}
