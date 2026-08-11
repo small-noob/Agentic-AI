@@ -1,0 +1,6 @@
+incident report 2026-08-05
+door                        : D3 (ServerRoom)
+type                        : tailgating
+confirmed violating records : 3
+badge                       : B1002
+status                      : closed
