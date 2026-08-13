@@ -173,18 +173,19 @@ def test_cell_source() -> str:
 
     preamble = re.compile(
         r"import starter_harness\n+try:\n.*?\n\s+harness = None\n", re.DOTALL)
+    titles = {"test_plan": "is the plan allowed to run?",
+              "test_run": "end-to-end runs, the role table, the sandbox regression"}
     bodies = []
     for name in ("test_plan", "test_run"):
         source = (LESSON / "tests" / f"{name}.py").read_text(encoding="utf-8")
         source, count = preamble.subn("", source)
         if count != 1:
             raise SystemExit(f"tests/{name}.py no longer starts the way this expects")
-        bodies.append(f"# ── tests/{name}.py\n\n{strip_local_imports(source)}")
+        bodies.append(f"# ── {titles[name]}\n\n{strip_local_imports(source)}")
 
     header = '''
-    # The same suite the script package runs with `unittest discover`. It checks
-    # whatever this notebook has defined: `starter_harness` is your work, looked
-    # up as of now.
+    # The test suite. It checks whatever this notebook has defined so far: your
+    # three parts, looked up as of now.
     starter_harness = my_harness()
     harness = None          # the reference implementation is not in this package
     '''
