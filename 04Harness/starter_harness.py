@@ -14,6 +14,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import lesson2  # noqa: F401  (appends 02Tools to sys.path; see lesson2.py)
+
 from agent import AgentResult
 from roles import (
     ACTION_TOOLS,

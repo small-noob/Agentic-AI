@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import lesson2  # noqa: F401  (appends 02Tools to sys.path; see lesson2.py)
+
 import starter_harness
 
 try:

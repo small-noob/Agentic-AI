@@ -1,8 +1,8 @@
 """The run log: one structured record per thing the harness did.
 
-Lesson 1 graded off ``ToolEnvironment.history``. Lesson 2 graded off
-``ToolRegistry.history``. Both are per-agent: they answer "which tools did *this*
-agent call". A harness runs several agents, retries some of them, and has to
+Lesson 1 graded off the ``trace`` its single loop returned. Lesson 2 graded off
+``ToolRegistry.history``. Both are per-agent: they answer "what did *this* agent
+do". A harness runs several agents, retries some of them, and has to
 answer questions no single registry can: which roles ran, what each role was
 allowed to see, how many attempts a task took, which failure was terminal.
 

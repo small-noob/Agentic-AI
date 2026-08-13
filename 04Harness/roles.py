@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+import lesson2  # noqa: F401  (appends 02Tools to sys.path; see lesson2.py)
+
 from actions import ActionSystem, build_action_tools
 from agent import SKILLS_TEMPLATE, ToolAgent
 from agent_tools import build_workspace_tools

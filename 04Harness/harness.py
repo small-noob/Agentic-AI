@@ -16,6 +16,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+import lesson2  # noqa: F401  (appends 02Tools to sys.path; see lesson2.py)
+
 from agent import AgentResult
 from roles import (
     ACTION_TOOLS,
@@ -30,6 +32,7 @@ from roles import (
     skills_index_for,
 )
 from task import (
+    KNOWN_REASONS,
     MAX_PLAN_TASKS,
     TASK_PROMPT,
     task_action,
@@ -137,8 +140,6 @@ def validate_plan(plan: Any, findings: dict[str, Any] | None = None) -> list[str
     allowed: dict[str, set[str]] = {}
     expected_arguments: dict[tuple[str, str], dict[str, str]] = {}
     if isinstance(findings, dict):
-        from task import KNOWN_REASONS  # local import keeps the module import-light
-
         mapping = {
             "revoked_badge": "revoke_badge",
             "insufficient_clearance": "open_ticket",

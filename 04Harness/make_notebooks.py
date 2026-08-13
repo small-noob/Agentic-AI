@@ -8,6 +8,24 @@ AST, so a change to the reference implementation is picked up here the next time
 this script runs.
 
     python3 make_notebooks.py && python3 -m unittest discover -s tests
+
+The notebooks are **self-contained**, because the student branch ships nothing
+but `Harness_Lab.ipynb`, `skills/` and `workspace/` — no `.py` at all. That
+leaves two kinds of code to place, and they are placed differently on purpose:
+
+* what lesson 2 already taught (registry, sandbox, calculator, ReAct loop, skill
+  loader, client, red team) is **imported** from ``../02Tools`` by the setup
+  cell, exactly as ``lesson2.py`` does for the script package. It is not copied
+  into the notebook: a fix in chapter 2 has to be a fix here.
+* what only lesson 4 has (``task``, ``events``, ``actions``, ``audit_tool``,
+  ``verifiers``, ``roles``, ``mock_client``, ``grader``, and the flows out of
+  ``main``) is **inlined**, one readable cell per module, because there is no
+  earlier chapter to import it from.
+
+Inlining into one flat namespace means the modules' imports *of each other* have
+to go — ``strip_local_imports`` does that — and that two modules must never
+define the same top-level name, which ``check_no_collisions`` enforces loudly
+rather than letting one silently overwrite the other.
 """
 
 from __future__ import annotations
@@ -15,15 +33,33 @@ from __future__ import annotations
 import ast
 import json
 import pathlib
+import re
 import textwrap
 
 LESSON = pathlib.Path(__file__).resolve().parent
 
+# Lesson 4's own modules, in dependency order: each one may only use names the
+# cells above it have already defined.
+INLINED = ("task", "events", "actions", "audit_tool", "verifiers", "roles",
+           "mock_client", "grader")
 
-def reference_source(*names: str) -> str:
-    """The exact source of the named functions in harness.py."""
+# From main.py, only the run flows and the printers. The argparse CLI stays
+# behind on the instructor branch; in a notebook the cells are the CLI.
+MAIN_FUNCTIONS = ("flow_single", "flow_pipeline", "flow_plan", "print_trace",
+                  "print_grade", "run_sandbox_check")
 
-    source = (LESSON / "harness.py").read_text(encoding="utf-8")
+# Names that resolve to a cell above instead of to an import.
+DROPPED_IMPORTS = frozenset(INLINED) | {"lesson2", "main", "starter_harness", "harness"}
+
+
+def module_source(name: str) -> str:
+    return (LESSON / f"{name}.py").read_text(encoding="utf-8")
+
+
+def named_source(module: str, *names: str) -> str:
+    """The exact source of the named top-level functions in a module."""
+
+    source = module_source(module)
     tree = ast.parse(source)
     found = {
         node.name: ast.get_source_segment(source, node)
@@ -32,8 +68,136 @@ def reference_source(*names: str) -> str:
     }
     missing = [name for name in names if name not in found]
     if missing:
-        raise SystemExit(f"harness.py no longer defines {missing}")
+        raise SystemExit(f"{module}.py no longer defines {missing}")
     return "\n\n\n".join(found[name] for name in names)
+
+
+def reference_source(*names: str) -> str:
+    """The exact source of the named functions in harness.py."""
+
+    return named_source("harness", *names)
+
+
+def strip_main_guard(source: str) -> str:
+    """Drop a trailing ``if __name__ == "__main__":`` block.
+
+    A notebook cell *is* ``__main__``, so a script's entry point would fire the
+    moment the cell runs — in the test modules' case, a second unittest run
+    against the notebook's own filename.
+    """
+
+    return re.sub(r"\n*if __name__ == [\"']__main__[\"']:\n(?:(?:[ \t]+.*)?\n)*$",
+                  "\n", source)
+
+
+def strip_local_imports(source: str) -> str:
+    """Drop the imports that a flat namespace makes meaningless (and wrong)."""
+
+    lines = strip_main_guard(source).splitlines()
+    kept: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        match = re.match(r"(?:from|import)\s+([A-Za-z_]\w*)", line)
+        if match and match.group(1) in DROPPED_IMPORTS:
+            if "(" in line and ")" not in line:
+                while ")" not in lines[index]:
+                    index += 1      # a parenthesised import runs over several lines
+            index += 1
+            continue
+        kept.append(line)
+        index += 1
+    return re.sub(r"\n{4,}", "\n\n\n", "\n".join(kept)).strip()
+
+
+def top_level_names(source: str) -> set[str]:
+    names: set[str] = set()
+    for node in ast.parse(source).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+    return names
+
+
+def check_no_collisions(sources: dict[str, str]) -> None:
+    """One namespace, so a name defined twice is a silent overwrite."""
+
+    seen: dict[str, str] = {}
+    for module, source in sources.items():
+        for name in top_level_names(source):
+            if name in seen:
+                raise SystemExit(
+                    f"{module}.py and {seen[name]} both define {name!r}; the "
+                    f"inlined notebook has one namespace, so rename one of them"
+                )
+            seen[name] = f"{module}.py"
+
+
+def scaffolding_cells() -> list[dict]:
+    """One cell per lesson-4 module, plus the flows lifted out of main.py."""
+
+    sources = {name: strip_local_imports(module_source(name)) for name in INLINED}
+
+    # A notebook has no ``__file__``; the setup cell worked the folder out already.
+    anchor = "LESSON_ROOT = Path(__file__).resolve().parent"
+    if anchor not in sources["task"]:
+        raise SystemExit("task.py no longer sets LESSON_ROOT from __file__")
+    sources["task"] = sources["task"].replace(
+        anchor,
+        "LESSON_ROOT = LESSON_DIR   # a notebook has no __file__; see the setup cell",
+    )
+
+    sources["main"] = strip_local_imports(named_source("main", *MAIN_FUNCTIONS))
+    check_no_collisions(sources)
+
+    titles = {
+        "task": "the problem statement and what a correct run produces",
+        "events": "the run log the grader reads",
+        "actions": "the three services, and the three ways they fail",
+        "audit_tool": "last week's exercise, packaged as a tool",
+        "verifiers": "asking the log what actually happened",
+        "roles": "the three role specs: prompt, tool subset, finish verifier",
+        "mock_client": "the offline model — deterministic, no API key",
+        "grader": "the 30 points, all of them read off the event log",
+        "main": "the run flows and the trace printer",
+    }
+    return [code(f"# ── {name}.py — {titles[name]}\n\n{source}")
+            for name, source in sources.items()]
+
+
+def test_cell_source() -> str:
+    """tests/ inlined: the same suite the script package runs with unittest."""
+
+    preamble = re.compile(
+        r"import starter_harness\n+try:\n.*?\n\s+harness = None\n", re.DOTALL)
+    bodies = []
+    for name in ("test_plan", "test_run"):
+        source = (LESSON / "tests" / f"{name}.py").read_text(encoding="utf-8")
+        source, count = preamble.subn("", source)
+        if count != 1:
+            raise SystemExit(f"tests/{name}.py no longer starts the way this expects")
+        bodies.append(f"# ── tests/{name}.py\n\n{strip_local_imports(source)}")
+
+    header = '''
+    # The same suite the script package runs with `unittest discover`. It checks
+    # whatever this notebook has defined: `starter_harness` is your work, looked
+    # up as of now.
+    starter_harness = my_harness()
+    harness = None          # the reference implementation is not in this package
+    '''
+    runner = '''
+    suite = unittest.TestSuite()
+    loader = unittest.TestLoader()
+    for value in list(globals().values()):
+        if isinstance(value, type) and issubclass(value, unittest.TestCase):
+            suite.addTests(loader.loadTestsFromTestCase(value))
+    unittest.TextTestRunner(verbosity=2).run(suite)
+    '''
+    return "\n\n\n".join([textwrap.dedent(header).strip(), *bodies,
+                          textwrap.dedent(runner).strip()])
 
 
 def md(text: str) -> dict:
@@ -150,31 +314,83 @@ def build(solution: bool) -> dict:
         | Part 3 | `classify_failure`, `run_task_with_retry` | a retry policy is a decision, not a loop count |
 
         Everything runs on the offline mock: no API key, no cost, deterministic.
-        Read `README.md` for the full handout and `INSTRUCTOR_NOTES.md` for why
-        the lesson is shaped this way.
+        Read `README.md` for the full handout.
+
+        This notebook is the whole package: the cells below carry every piece of
+        the harness except the parts you already built in lesson 2, which are
+        imported from `../02Tools` rather than copied. **Keep the lesson folders
+        side by side** and open this notebook from inside `04Harness`.
+        """),
+
+        md("""
+        ## Setup · lesson 2, imported
+
+        The registry, the path sandbox, the calculator, the ReAct loop, the skill
+        loader and the red team are lesson 2's, unchanged. This lesson does not
+        ship its own copies — it puts `../02Tools` on the import path and imports
+        them, so a fix over there is a fix here.
         """),
 
         code("""
-        import re, sys, types
+        import copy, json, re, sys, tempfile, types, unittest
+        from pathlib import Path
         from typing import Any
-        sys.path.insert(0, ".")
 
-        from actions import ActionSystem
-        from agent import AgentResult
-        from events import EventLog
-        from grader import grade_run
-        from main import flow_plan, flow_single, print_grade, print_trace
-        from mock_client import ScriptedMockClient
-        from roles import (INVESTIGATOR, PLANNER, REMEDIATOR, ROLE_SPECS, RoleAgent,
-                           RunContext, build_all_tools, planner_input,
-                           remediator_input_from_findings, remediator_input_from_task,
-                           skills_index_for)
-        from skill_loader import discover_skills
-        from task import (MAX_PLAN_TASKS, SKILLS_DIR, TASK_PROMPT, WORKSPACE_ROOT,
-                          task_action, task_arguments, task_badge, task_id)
-        from verifiers import last_error, verify_task
+        def find_lesson_dir():
+            "04Harness: the folder holding workspace/policy.json and skills/."
+            for base in (Path.cwd(), *Path.cwd().parents):
+                for candidate in (base, base / "04Harness"):
+                    if (candidate / "workspace" / "policy.json").is_file():
+                        return candidate.resolve()
+            raise SystemExit("Open this notebook from inside the 04Harness folder.")
 
-        ACTION_TOOLS = ("revoke_badge", "open_ticket", "notify_manager")
+        LESSON_DIR = find_lesson_dir()
+        TOOLS_DIR = LESSON_DIR.parent / "02Tools"
+        if not TOOLS_DIR.is_dir():
+            raise SystemExit(
+                "02Tools was not found next to 04Harness. This lesson imports "
+                "chapter 2's registry, sandbox, calculator and ReAct loop; keep "
+                "the lesson folders side by side."
+            )
+        if str(TOOLS_DIR) not in sys.path:
+            sys.path.append(str(TOOLS_DIR))
+
+        from agent import AgentResult, SKILLS_TEMPLATE, ToolAgent
+        from agent_tools import build_workspace_tools
+        from calculator import safe_calculate
+        from redteam import build_attack_workspace, run_attacks, run_legitimate
+        from registry import ToolError, ToolRegistry
+        from sandbox import SandboxError, relative_to_root, resolve_safe_path
+        from skill_loader import Skill, discover_skills, register_skill_tool, skill_index
+        from zhipu_client import DEFAULT_MODEL
+
+        print("lesson 4 :", LESSON_DIR)
+        print("lesson 2 :", TOOLS_DIR, "(imported, not copied)")
+        """),
+
+        md("""
+        ## The scaffolding
+
+        The nine cells below are lesson 4's own modules — the task, the event
+        log, the three failing services, the audit tool, the verifier, the role
+        specs, the offline model, the grader, the run flows. You do not have to
+        write any of it, but `roles.py` and `actions.py` repay reading before you
+        start, and the grader is worth reading before you argue with a score.
+
+        Run them all (`Run All Above` works), then carry on to part 0.
+        """),
+
+        *scaffolding_cells(),
+
+        md("""
+        ## Your bench
+
+        `new_context()` gives every run a fresh log and a fresh action ledger.
+        `my_harness()` bundles whatever you have defined so far, looked up
+        lazily, so part 1 can run before part 2 exists.
+        """),
+
+        code("""
         TERMINAL_STATUS_CODES = {409, 410}   # settled: retrying cannot change them
         REQUIRED_TASK_ARGUMENTS = {
             "revoke_badge": {"badge_id"},
@@ -390,6 +606,27 @@ def build(solution: bool) -> dict:
         gets **F3 right** — one attempt, then it stops — purely because it never
         retries anything. Is that a policy?
 
+        ---
+        ## 5 · The checks you hand in against
+
+        Two more runs before you are done. The first is the test suite; the three
+        checklist tests fail until all three parts are written, and the rest hold
+        `validate_plan` to the cases a live planner actually produced.
+        """),
+
+        code(test_cell_source()),
+
+        md("""
+        And the regression lesson 2 asked for — every lesson that adds tools
+        reruns the red team, because the file tools this lesson hands its
+        investigator are the ones you sandboxed there.
+        """),
+
+        code("""
+        run_sandbox_check()
+        """),
+
+        md("""
         ## Debrief
 
         1. The single agent read the handover note and acted on it. The pipeline
@@ -403,12 +640,10 @@ def build(solution: bool) -> dict:
            report. Name a task here where the two would disagree. How would you
            know which was right in a system where you cannot see the receipts?
 
-        Finally, the regression lesson 2 asked for — every lesson that adds tools
-        reruns the red team:
+        ## Submit
 
-        ```bash
-        python3 main.py --mode sandbox
-        ```
+        This notebook, run top to bottom, with the `full` run showing **30/30**
+        and the suite green. No API key anywhere in it or its output.
         """),
     ]
 
@@ -423,9 +658,28 @@ def build(solution: bool) -> dict:
     }
 
 
+def check_no_stray_imports(notebook: dict) -> None:
+    """No cell may import an inlined module — 02Tools would answer instead.
+
+    Both chapters define ``task``, ``grader``, ``main`` and ``mock_client``, and
+    ``../02Tools`` is on the path, so a surviving ``from task import X`` does not
+    fail: it quietly returns *lesson 2's* task. Catch it here instead.
+    """
+
+    pattern = re.compile(r"^\s*(?:from|import)\s+(" + "|".join(sorted(DROPPED_IMPORTS)) + r")\b",
+                         re.MULTILINE)
+    for index, cell in enumerate(notebook["cells"], 1):
+        if cell["cell_type"] != "code":
+            continue
+        stray = pattern.findall("".join(cell["source"]))
+        if stray:
+            raise SystemExit(f"cell {index} still imports {sorted(set(stray))}")
+
+
 def main() -> None:
     for solution, name in ((False, "Harness_Lab.ipynb"), (True, "Harness_Lab_Solution.ipynb")):
         notebook = build(solution)
+        check_no_stray_imports(notebook)
         text = json.dumps(notebook, ensure_ascii=False, indent=1)
         if solution and "NotImplementedError(\"TODO" in text:
             raise SystemExit("a TODO placeholder survived into the solution notebook")

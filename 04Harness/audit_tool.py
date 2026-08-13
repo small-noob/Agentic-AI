@@ -23,6 +23,8 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+import lesson2  # noqa: F401  (appends 02Tools to sys.path; see lesson2.py)
+
 from registry import ToolError, ToolRegistry
 from sandbox import SandboxError, resolve_safe_path
 

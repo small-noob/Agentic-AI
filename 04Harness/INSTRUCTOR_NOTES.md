@@ -3,23 +3,36 @@
 `README.md` is the student handout. Everything about *why* the lesson is shaped
 this way lives here.
 
-## How lesson 4 iterates on lessons 1 and 2
+## How lesson 4 iterates on the earlier lessons
 
-| | 01Introduction | 02Tools | 04Harness |
-| --- | --- | --- | --- |
-| The A/B being taught | no tools vs tools | no procedure vs procedure | no boundary vs roles, fixed vs planned, no retry vs policy |
-| What students write | the ReAct loop | the sandbox, the tools, a SKILL.md | the harness around the agents |
-| Agent count | 1 | 1 | 3 roles, spawned 8–11 times |
-| The bottleneck | arithmetic | file I/O | **authority** — who may do what |
-| Safety boundary | calculator AST allow-list | + path sandbox | + role tool subsets |
-| Side effects | none | one report file | irreversible, in three services |
-| Evidence for grading | `tools.history` | `registry.history` | a harness-level event log |
+| | 01Introduction | 02Tools | 03Memory | 04Harness |
+| --- | --- | --- | --- | --- |
+| The A/B being taught | one-shot answer vs a ReAct loop | no procedure vs procedure | no memory vs memory | no boundary vs roles, fixed vs planned, no retry vs policy |
+| What students write | the prompt, the few-shot, the reflection | the sandbox, the tools, a SKILL.md | the memory pipeline | the harness around the agents |
+| Agent count | 1 | 1 | 1, across two sessions | 3 roles, spawned 8–11 times |
+| The bottleneck | acting on verifier feedback | file I/O | what survives a fresh context | **authority** — who may do what |
+| Safety boundary | calculator AST allow-list | + path sandbox | (unchanged) | + role tool subsets |
+| Side effects | none | one report file | one report file | irreversible, in three services |
+| Evidence for grading | the run's `trace` and `passed` | `registry.history` | the store's contents | a harness-level event log |
 
-Eight modules are copied from `02Tools` **byte for byte** — `registry.py`,
+Lesson 1 is a notebook that ends with a three-action protocol
+(`VerifyPlan / Calculate / Finish`) parsed by hand and a loop with a step limit.
+Lesson 2 is where that becomes a registry, and lesson 4 inherits it from there —
+lesson 1 ships no `.py` files, so there is nothing to import from it.
+
+Eight modules are **imported** from `02Tools`, not copied — `registry.py`,
 `sandbox.py`, `calculator.py`, `skill_loader.py`, `zhipu_client.py`, `agent.py`,
-`agent_tools.py`, `redteam.py`. `tests/test_run.py` reruns the lesson 2 red team
-as a regression gate, which is the rule lesson 2's own notes ended on. Students
-can `diff` any of the eight against `../02Tools/` and find nothing.
+`agent_tools.py`, `redteam.py`. `lesson2.py` appends `../02Tools` to `sys.path`
+and every module that needs one of the eight imports it first; this is the same
+shim lesson 3 uses, and it is the mechanism 02Tools' own notes promised ("later
+chapters import this module directly"). A fix in chapter 2 is a fix here, which
+a byte-for-byte copy could only approximate. The cost is that the lesson folders
+must sit side by side — `lesson2.py` says so with a clear `ImportError` rather
+than a missing-module traceback.
+
+`tests/test_run.py` reruns the lesson 2 red team as a regression gate, which is
+the rule lesson 2's own notes ended on. It now runs lesson 2's *actual*
+`redteam.py`, not a copy of it.
 
 The one file that is *not* byte-identical is
 `skills/audit_access_log/SKILL.md`, and the diff is the point. Its counting half
@@ -27,29 +40,43 @@ is unchanged; its reporting half had to be rewritten because the downstream
 consumer changed. Worth putting on screen: **a procedure's tail is owned by
 whoever consumes its output.**
 
-## Two branches, not one directory with a warning label
+## Two branches, and they are not the same package
 
 The answers are not in the student package at all, and not in its git history
-either:
+either. The two branches also ship in different **shapes**, which is the change
+lesson 1 forced when it went notebook-only:
 
-| Branch | Contents | For |
+| Branch | 04Harness contains | For |
 | --- | --- | --- |
-| `lesson-04-harness` → merged to `main` | 23 files. No reference implementation anywhere in its history. | students |
-| `lesson-04-harness-solution` | the same 23 files plus the four below | you |
+| `lesson-04-harness` → merged to `main` | `Harness_Lab.ipynb`, `README.md`, `skills/`, `workspace/`. No `.py` at all, and no reference implementation anywhere in its history. | students |
+| `lesson-04-harness-solution` | the script package (`roles.py`, `actions.py`, … , `tests/`) **plus** `harness.py`, `Harness_Lab_Solution.ipynb`, `make_notebooks.py` and this file | you |
 
-```text
-harness.py                  the reference for all three TODOs
-Harness_Lab_Solution.ipynb  the solved notebook
-make_notebooks.py           the notebook generator
-INSTRUCTOR_NOTES.md         this file
-```
+Students get one file to open, the way lesson 1 hands them one notebook. The
+`.py` package stays here because it is the *source* the notebooks are generated
+from, and because the CLI (`--mode single/pipeline/plan/full`, `--mode sandbox`,
+`--trace-out`) is the fastest way to demo the ladder in class.
 
-The student package **runs standalone** — this is checked, not assumed. With an
-untouched starter: 30 tests with exactly 3 failures (the checklist),
-`--mode single --offline` gives a full trace and 0/30, and `Harness_Lab.ipynb`
-executes to TODO 1b. With the TODOs completed: 30 tests green, the ladder
-0 → 10 → 23 → 30, sandbox PASS. Three things were needed to make that true, and
-they are worth knowing if you ever restructure this:
+`make_notebooks.py` therefore does more than swap three cells. It inlines
+lesson 4's own modules one cell per module, strips the imports they make of each
+other (a notebook has one namespace), refuses to emit a notebook where two
+modules define the same top-level name or where a stray `from task import …`
+survived — that one would silently resolve to *lesson 2's* `task.py`, which is
+also on the path — and rewrites `task.py`'s `Path(__file__)` line, because a
+notebook has no `__file__`. What it does **not** inline is anything from
+`02Tools`: the setup cell puts `../02Tools` on `sys.path` and imports it, so the
+notebook and the script package reuse chapter 2 the same way.
+
+Both packages **run standalone** — this is checked, not assumed:
+
+- script package, untouched starter: 30 tests with exactly 3 failures (the
+  checklist), `--mode single --offline` gives a full trace and 0/30;
+- `Harness_Lab.ipynb`, run top to bottom: setup and the nine scaffolding cells
+  run, the baseline scores 0/30, execution stops at TODO 1b;
+- `Harness_Lab_Solution.ipynb`, run top to bottom: the ladder 0 → 10 → 23 → 30,
+  the inlined suite green (30 tests), sandbox PASS.
+
+Four things were needed to make that true, and they are worth knowing if you
+ever restructure this:
 
 - `--implementation` defaults to `starter`, and asking for `solution` without
   `harness.py` gives a plain message instead of an import traceback;
@@ -59,13 +86,32 @@ they are worth knowing if you ever restructure this:
 - both test modules import `harness` inside a `try`, and grade only what is
   present. On the solution branch they check the student's work *and* the
   reference against the same cases; on the student branch, just the student's.
+  In the notebook the same suite runs against `my_harness()`;
+- nothing in `harness.py` may import lazily inside a function body. The one that
+  did (`from task import KNOWN_REASONS`) was hoisted: inlined into a cell, it
+  would have reached across to `02Tools/task.py` and raised.
+
+Because the two branches now hold different files, `README.md` differs between
+them as well: same lesson, but one handout says `python3 main.py --mode full`
+and the other says "run the cells". Keep the prose in step by hand; everything
+else the student sees is generated.
 
 `skills/audit_access_log/SKILL.md` stays in the student package. Unlike lesson 2,
 students do not write it here — the investigator loads it at run time, so it is
 data, not an answer.
 
 To update the student branch after changing something on the solution branch,
-cherry-pick rather than merge; merging would drag the four files across.
+never merge — merging would drag the whole `.py` package across. Regenerate and
+copy the one file instead:
+
+```bash
+git checkout lesson-04-harness-solution && python3 04Harness/make_notebooks.py
+git checkout lesson-04-harness
+git checkout lesson-04-harness-solution -- 04Harness/Harness_Lab.ipynb
+```
+
+Then run the student notebook top to bottom before committing: on that branch
+there is no test suite outside it.
 
 ## Why the multi-agent split is not decorative
 

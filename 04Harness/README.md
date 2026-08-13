@@ -44,8 +44,11 @@ it before you read any further here.
 | TODO 2 | `validate_plan` and `execute_plan` — the workflow as data | `starter_harness.py` |
 | TODO 3 | `classify_failure` and `run_task_with_retry` — the retry policy | `starter_harness.py` |
 
-**Only that one file changes.** Everything else is scaffolding, and most of it
-came from lesson 2 unmodified.
+**Only that one file changes.** Everything else is scaffolding, and the part of
+it you already know — the registry, the sandbox, the calculator, the ReAct loop,
+the skill loader — is not copied here at all: `lesson2.py` puts `../02Tools` on
+the import path and this lesson imports those modules from there, exactly as
+lesson 3 does. Keep the lesson folders side by side.
 
 If you prefer a notebook, `Harness_Lab.ipynb` is the same three TODOs with the
 runs and the grader wired up cell by cell. Either route is fine; the graded
@@ -64,6 +67,15 @@ deliberately does *not* fill in `manager_id` — see TODO 2 for why that matters
 ## 2. Set up
 
 Python 3.10 or newer. Standard library only — nothing to install.
+
+This lesson imports lesson 2's modules instead of shipping its own copies, so
+`02Tools` has to sit next to `04Harness` in the same checkout:
+
+```text
+Agentic-AI/
+├── 02Tools/      ← imported from, never modified
+└── 04Harness/    ← you are here
+```
 
 ```bash
 cd 04Harness

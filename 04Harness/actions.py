@@ -28,6 +28,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import lesson2  # noqa: F401  (appends 02Tools to sys.path; see lesson2.py)
+
 from events import EventLog
 from registry import ToolError, ToolRegistry
 

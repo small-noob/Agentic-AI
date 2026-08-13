@@ -19,6 +19,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+import lesson2  # noqa: F401  (appends 02Tools to sys.path; see lesson2.py)
+
 from actions import ActionSystem
 from events import EventLog
 from grader import Grade, grade_run
