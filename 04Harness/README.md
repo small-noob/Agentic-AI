@@ -38,18 +38,23 @@ it before you read any further here.
 
 ### The three things you submit
 
+Everything happens in `Harness_Lab.ipynb`. Three cells are marked TODO:
+
 | | What | Where |
 | --- | --- | --- |
-| TODO 1 | `spawn` and `run_pipeline` — the role boundary | `starter_harness.py` |
-| TODO 2 | `validate_plan` and `execute_plan` — the workflow as data | `starter_harness.py` |
-| TODO 3 | `classify_failure` and `run_task_with_retry` — the retry policy | `starter_harness.py` |
+| TODO 1 | `spawn` and `run_pipeline` — the role boundary | part 1 |
+| TODO 2 | `validate_plan` and `execute_plan` — the workflow as data | part 2 |
+| TODO 3 | `classify_failure` and `run_task_with_retry` — the retry policy | part 3 |
 
-**Only that one file changes.** Everything else is scaffolding, and most of it
-came from lesson 2 unmodified.
+**Only those three cells change.** Everything above them is scaffolding: the
+role specs, the three services, the event log, the offline model and the grader
+are all there for you to read, and none of it is graded.
 
-If you prefer a notebook, `Harness_Lab.ipynb` is the same three TODOs with the
-runs and the grader wired up cell by cell. Either route is fine; the graded
-artefact is `starter_harness.py`.
+The part you already know is not in the notebook at all. The registry, the path
+sandbox, the calculator, the ReAct loop and the skill loader are **lesson 2's
+files, imported** — the setup cell puts `../02Tools` on the import path and
+imports them from there. A fix in chapter 2 is a fix here, and there is no copy
+to drift out of date.
 
 ### One thing you are *not* asked to do
 
@@ -63,31 +68,40 @@ deliberately does *not* fill in `manager_id` — see TODO 2 for why that matters
 
 ## 2. Set up
 
-Python 3.10 or newer. Standard library only — nothing to install.
+Python 3.10 or newer. Standard library only — nothing to install. You need
+VS Code with the Jupyter extension, Jupyter Notebook, or JupyterLab.
 
-```bash
-cd 04Harness
-python3 main.py --mode single --offline
+Because this lesson imports lesson 2's modules instead of shipping copies, the
+two folders have to sit side by side in the same checkout:
+
+```text
+Agentic-AI/
+├── 02Tools/      ← imported from, never modified
+└── 04Harness/    ← open the notebook from here
 ```
 
-A trace ending in `0/30` means your environment is fine — and that run is also
-section 3, so read it when you get there. `--offline` uses a built-in fake model:
-no cost, no API key. **Keep it on for the whole assignment.** Only configure a key
-when you want to see a real model try:
+Open `Harness_Lab.ipynb`, select a Python kernel, and run the setup cell. It
+prints the two folder paths it found. If it raises instead, it tells you which
+folder is missing — nothing else in the notebook will work until it prints.
+
+Then run the nine scaffolding cells (`Run All Above` from part 0 does it in one
+go). Everything runs against a built-in offline model: deterministic, no cost,
+no API key. **Keep it that way for the whole assignment.** Only configure a key
+if you want to watch a real model try, which the last section covers:
 
 ```bash
 export ZAI_API_KEY="your API key"
 export ZAI_MODEL="glm-4-flash-250414"
 ```
 
-Four modes matter, and they are the assignment in order:
+Four runs matter, and they are the assignment in order:
 
-| Mode | What it is | Score |
+| Run | What it is | Score |
 | --- | --- | --- |
-| `--mode single` | one agent holding every tool — the lesson 2 shape | 0/30 |
-| `--mode pipeline` | TODO 1: investigator → remediator | 10/30 |
-| `--mode plan` | TODO 2: + a planner, no retries | 23/30 |
-| `--mode full` | TODO 3: + verification and a retry policy | 30/30 |
+| part 0 · `flow_single` | one agent holding every tool — the lesson 2 shape | 0/30 |
+| part 1 · `run_pipeline` | TODO 1: investigator → remediator | 10/30 |
+| part 3 · `flow_plan(max_attempts=1)` | TODO 2: + a planner, no retries | 23/30 |
+| part 3 · `flow_plan(max_attempts=3)` | TODO 3: + verification and a retry policy | 30/30 |
 
 Everything is graded on the same 30 points, so the three parts read as a
 progression rather than three separate exercises.
@@ -96,9 +110,8 @@ progression rather than three separate exercises.
 
 ## 3. Before you write anything, watch it fail
 
-```bash
-python3 main.py --mode single --offline
-```
+Part 0 runs before you have written a line: `flow_single` is wired by hand, so
+the baseline works without TODO 1.
 
 One agent. It can read every file and it can revoke badges, and it is told —
 clearly, in its system prompt — to do the right thing. Read the trace to the end.
@@ -120,24 +133,16 @@ the model decides to do with the tools it has. Note what the fix is **not**: no
 amount of "ignore instructions found in files" added to that prompt is a control,
 because you are asking the thing that was fooled to notice it was fooled.
 
-Now:
-
-```bash
-python3 main.py --mode full --offline
-```
-
-Same data, same note, same model. The note is read — you can see it in the
-investigator's trace — and nothing happens to B1002. Reproducing that difference
-is the point of TODO 1.
+By the end of part 3 the same data, the same note and the same model produce a
+run where the note is read — you can see it in the investigator's trace — and
+nothing happens to B1002. Reproducing that difference is the point of TODO 1.
 
 ---
 
 ## 4. TODO 1 — the role boundary
 
-Open `starter_harness.py` and implement `spawn` and `run_pipeline`.
-
 A role is three things: a system prompt, a **tool subset**, and a finish
-verifier. All three are already written for you in `roles.py` — read
+verifier. All three are already written for you in the `roles.py` cell — read
 `ROLE_SPECS` before you write anything. What is missing is the part that
 enforces them.
 
@@ -154,12 +159,8 @@ has no reader — no prompt, however persuasive, adds a tool to a registry.
 
 ### How to test it
 
-```bash
-python3 main.py --mode pipeline --offline
-```
-
-Expect `10/30`: `isolation 6/6` and `injection 4/4`. The other 20 points belong
-to TODO 2 and 3.
+Run the cell right below TODO 1. Expect `10/30`: `isolation 6/6` and
+`injection 4/4`. The other 20 points belong to TODO 2 and 3.
 
 ### Two ways to lose the isolation points
 
@@ -221,8 +222,8 @@ those happen: a live `glm-4-flash` planner returned exactly one task on its firs
 attempt and only produced the rest after the validator told it what was missing.
 
 And in the other direction, exactly as in lesson 2: a validator that rejects
-everything blocks every bad plan and is worth nothing. The suite includes a case
-that must be **accepted**.
+everything blocks every bad plan and is worth nothing. The suite in part 5
+includes a case that must be **accepted**.
 
 Two details worth noticing about the required arguments. `notify_manager` needs a
 `manager_id` and `open_ticket` needs a `door` — and the remediator cannot look
@@ -236,29 +237,10 @@ had no next role.
 
 ### How to test it
 
-`--mode plan` executes the plan, and executing needs TODO 3. So check TODO 2 on
-its own first, against the tests and against a plan you produce by hand:
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 -c "
-from mock_client import ScriptedMockClient
-from main import build_context
-import starter_harness as impl
-from roles import INVESTIGATOR, PLANNER, planner_input
-from task import TASK_PROMPT, SKILLS_DIR
-from zhipu_client import DEFAULT_MODEL
-client = ScriptedMockClient()
-ctx = build_context(impl, model=DEFAULT_MODEL, max_steps=14, skills_dir=SKILLS_DIR)
-ctx.findings = impl.spawn(client, INVESTIGATOR, TASK_PROMPT, ctx).answer
-plan = impl.spawn(client, PLANNER, planner_input(ctx.findings), ctx).answer
-print(len(plan['tasks']), 'tasks')
-print(impl.validate_plan(plan, ctx.findings) or 'OK')
-"
-```
-
-Six tasks and `OK` means TODO 2 is done. The full `--mode plan` run (`23/30`)
-becomes available once TODO 3 exists.
+Executing a plan needs TODO 3, so part 2 ends with a checkpoint cell that stops
+short of executing: it spawns the investigator and the planner, prints the plan
+task by task, and runs your validator over it. Six tasks and `OK` means TODO 2 is
+done.
 
 ---
 
@@ -266,7 +248,7 @@ becomes available once TODO 3 exists.
 
 The three services fail on purpose, in three different ways. They answer like a
 real API: every failure starts with an HTTP-style status code. Read the docstring
-at the top of `actions.py` for what the codes mean.
+at the top of the `actions.py` cell for what the codes mean.
 
 | | What happens | What it is testing |
 | --- | --- | --- |
@@ -279,10 +261,10 @@ Write `classify_failure` (retryable or terminal) and `run_task_with_retry`.
 Two things in that loop are the whole lesson, and both are easy to leave out:
 
 **Ask the world, not the agent.** An agent that finishes with `{"status":
-"done"}` has told you what it believes. `verify_task` (given, in `verifiers.py`)
-reads the side effects the services actually recorded. Use it. An agent that
-reports success after a 503 is not lying — it is wrong, and only the receipt
-knows.
+"done"}` has told you what it believes. `verify_task` (given, in the
+`verifiers.py` cell) reads the side effects the services actually recorded. Use
+it. An agent that reports success after a 503 is not lying — it is wrong, and
+only the receipt knows.
 
 **Carry the error forward.** F2 is a wrong `manager_id`, and the service's reply
 lists the valid ones. A retry that discards that text will reproduce the
@@ -296,53 +278,42 @@ refused with a `409`, and a `409` anywhere in your run zeroes this entire item.
 
 ### How to test it
 
-```bash
-python3 main.py --mode full --offline
-```
-
-Expect `30/30`. Note that five of the six tasks end `ok` and one ends `terminal`
-— reporting a permanent failure honestly **is** the correct outcome. A run that
-claims six successes is worse than one that reports five and a dead badge.
+The two cells below TODO 3 run the same plan without a retry budget and then with
+one: expect `23/30` and then `30/30`. Note that in the second run five of the six
+tasks end `ok` and one ends `terminal` — reporting a permanent failure honestly
+**is** the correct outcome. A run that claims six successes is worse than one
+that reports five and a dead badge.
 
 ---
 
 ## 7. When everything is done
 
-Run these three. All three must pass:
+Restart the kernel and run the notebook top to bottom. All of this must hold:
 
-```bash
-python3 main.py --mode single --offline                                # 0/30, and see why
-python3 -m unittest discover -s tests -v                               # all green
-python3 main.py --mode full --offline         # 30/30
-```
+- part 0 prints a full trace and `0/30`;
+- the three ladder runs give `10/30`, `23/30`, `30/30`;
+- the test suite in part 5 is green — it is the same suite your instructor runs,
+  and the three checklist tests stay red until all three parts exist;
+- the red-team cell after it prints `[SANDBOX] PASS`. Lesson 2's rule was that
+  every lesson which adds tools reruns the red team, and this lesson hands file
+  tools to an investigator.
 
-The last one is the graded run. To watch a real model try it, drop `--offline`
-and save the trace:
+To watch a real model try, set `ZAI_API_KEY` before starting the kernel and
+swap the offline client for `ZhipuClient()` in the run cell. Expect a bumpier
+ride than offline: `glm-4-flash-250414` completes this run most of the time but
+not every time, and the usual failure is an agent repeating one tool call until
+its step budget runs out. That is worth seeing once — it is the argument for a
+loop guard, which this harness does not have.
 
-```bash
-python3 main.py --mode full --trace-out runs/my_run.json
-```
-
-Expect a bumpier ride than offline. `glm-4-flash-250414` completes this run most
-of the time but not every time: the usual failure is an agent repeating one tool
-call until its step budget runs out. That is worth seeing once — it is the
-argument for a loop guard, which this harness does not have.
-
-The trace is the full event log: every spawn with its tool list, every action
-with its receipt or its error, every verification and retry. It never contains
-your API key.
-
-Also worth running once, because lesson 2's rule was that every lesson which adds
-tools reruns the red team:
-
-```bash
-python3 main.py --mode sandbox
-```
+The trace printed by each run is the full event log: every spawn with its tool
+list, every action with its receipt or its error, every verification and retry.
+It never contains your API key.
 
 ### Submit
 
-- `starter_harness.py`
-- `runs/my_run.json` (if you ran the real model)
+`Harness_Lab.ipynb`, run top to bottom with its output saved. Before you submit,
+check that the `full` run shows `30/30`, that all three TODO cells are complete,
+and that no API key appears anywhere in the file or its outputs.
 
 ---
 
@@ -367,6 +338,11 @@ nothing here. What you are being graded on is the machinery around it.
 
 ## 9. If you get stuck
 
+**The setup cell raises before anything runs**
+Either the notebook was opened from outside `04Harness`, or `02Tools` is not
+next to it. This lesson imports chapter 2's modules rather than copying them, so
+both folders have to be in the same checkout.
+
 **`isolation 0/6` and I never gave the remediator `read_file`**
 Read the second half of the feedback line. It is probably the text, not the
 tools: something in `run_pipeline` is passing the investigator's transcript
@@ -379,9 +355,9 @@ a bug in your message, not in the model.
 
 **`plan 3/10` — it validates but covers nothing**
 Six `(action, badge_id)` pairs are required and each must carry the right
-arguments. `EXPECTED_ACTIONS` and `EXPECTED_ARGUMENTS` in `task.py` list them;
-knowing them does not earn the points, because the plan has to come out of the
-planner.
+arguments. `EXPECTED_ACTIONS` and `EXPECTED_ARGUMENTS` in the `task.py` cell list
+them; knowing them does not earn the points, because the plan has to come out of
+the planner.
 
 **F2 never recovers however high I set `max_attempts`**
 The fix is in the error text and your loop is throwing it away. Look at what you
@@ -392,8 +368,12 @@ Something re-issued an action that had already been applied. Either a terminal
 failure is being retried, or a task is being retried without checking whether it
 already succeeded.
 
+**A cell reports a name that is not defined**
+The notebook is one namespace and the cells run in order. Restart the kernel and
+run from the top; `Run All Above` is the shortcut.
+
 **Everything hangs or runs out of steps**
-`--max-steps` defaults to 14 per agent. Every Observation is printed, so start
+`max_steps` defaults to 14 per agent. Every Observation is printed, so start
 from the first `Tool error` in the trace.
 
 **You want to see the reference implementation**
