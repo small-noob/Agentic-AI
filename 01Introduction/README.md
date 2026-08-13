@@ -1,176 +1,220 @@
-# ReAct 课堂代码作业：两阶段数学锁
+# Direct vs. ReAct — In-Class Exercise
 
-本项目使用同一个智谱免费模型、同一道题和同一个评分器，比较两种运行方式：
+In this exercise, you will compare a one-shot model response with a small ReAct agent. Both approaches work on the same campus event planning problem. The Direct version answers once. The ReAct version can check a proposed plan, read the result, revise the plan, and calculate the final cost.
 
-1. **Direct**：只调用模型一次，不提供计算器，也没有第二次尝试。
-2. **ReAct**：模型先计算中间值，读取 Observation 后选择分支，再计算最终答案。
+Complete the exercise in [`Introduction_ReAct_Learner.ipynb`](./Introduction_ReAct_Learner.ipynb). This learner notebook is entirely in English and does not contain the reference implementation.
 
-题目不依赖外部文档，只开放一个安全计算器。理想轨迹只有两次
-`Calculate` 和一次 `Finish`，因此适合在课堂上直接展示 ReAct 的多轮闭环。
+## Learning goals
 
-## 挑战题
+By the end of the exercise, you should be able to:
 
-门禁系统按下面规则生成六位验证码：
+- follow a `Thought → Action → Observation` loop;
+- explain why an Observation can change the agent's next Action;
+- use a few-shot example to demonstrate an action protocol;
+- use verifier feedback to write a Reflection;
+- identify the role of the parser, tools, validator, and step limit in an agent harness.
+
+## The planning problem
+
+A school is arranging a workshop for 150 people. The plan must meet all of these requirements:
+
+- wheelchair access is required;
+- a projector is required;
+- renting a projector costs 250;
+- the workshop lasts two hours and must finish by 18:00;
+- the presenter can start only at 14:00 or 16:00;
+- the total cost cannot exceed 1,400.
+
+The available venues are:
+
+| Venue  | Capacity | Accessible | Built-in projector | Available start time |   Fee |
+| ------ | -------: | :--------: | :----------------: | -------------------- | ----: |
+| Hall A |      120 |    Yes    |        Yes        | 14:00, 16:00         |   900 |
+| Hall B |      180 |    Yes    |         No         | 14:00                | 1,000 |
+| Hall C |      160 |     No     |        Yes        | 16:00                |   800 |
+| Hall D |      200 |    Yes    |        Yes        | 15:00                | 1,300 |
+
+The initial plan is:
+
+```json
+{"venue": "Hall C", "start": "16:00", "rent_projector": false}
+```
+
+Your agent must check this plan, correct any violations, calculate the cost, and submit a verified result.
+
+## What you need to complete
+
+The notebook already provides the API client, action parser, tools, JSON handling, ReAct loop, and step limit. Your work is limited to three functions.
+
+### `build_reasoning_prompt(constraints)`
+
+Write the system prompt for the ReAct agent. It should make the model:
+
+- check the complete initial plan first;
+- use the latest Observation when choosing the next step;
+- produce only one Action per turn;
+- include `venue`, `start`, and `rent_projector` in every `VerifyPlan` call;
+- call `Finish` only after the plan and cost have been verified.
+
+### `build_few_shot_messages()`
+
+Write a short example using a different, simpler room-selection problem. The example should demonstrate the full sequence:
 
 ```text
-1. S = 20250807^123457 mod 1000000
-2. 观察 S：
-   - S 为偶数：C = (S × 2026 + 314159) mod 1000000
-   - S 为奇数：C = (S × 2025 + 271828) mod 1000000
-3. 输出 {"answer":"......"}
+VerifyPlan → Observation → Reflection → VerifyPlan → Calculate → Finish
 ```
 
-Direct 必须在没有计算器的情况下，一次性完成大指数模运算、判断奇偶并执行正确分支，
-弱模型无法稳定得到可通过精确评分的答案。ReAct 则形成真正的依赖链：
+The example should show how the agent keeps valid parts of a plan and changes the part that failed.
+
+### `build_reflection(feedback, previous_plan)`
+
+Return a string beginning with `Reflection:`. It should:
+
+- include the previous plan and the verifier feedback;
+- state what can be kept;
+- state what needs to change;
+- avoid repeating a venue with a permanent problem such as insufficient capacity;
+- remind the model to send a complete plan in its next `VerifyPlan` call.
+
+You do not need to modify the tool implementations or the ReAct loop.
+
+## Available actions
+
+The model may use one action per turn:
 
 ```text
-Calculate seed → Observation: 730807 → choose odd branch
-→ Calculate final code → Observation: 156003 → Finish
+Action: VerifyPlan[{"venue":"Hall C","start":"16:00","rent_projector":false}]
+Action: Calculate[1000+250]
+Action: Finish[{"venue":"...","start":"...","rent_projector":true,"total_cost":...}]
 ```
 
-这里的关键不是“多写几步思维”，而是下一次 Action 确实依赖上一次外部工具返回的
-Observation。
+`VerifyPlan` checks the constraints and reports any violations. `Calculate` evaluates the final cost. `Finish` submits the result after both the plan and cost have been checked.
 
-官方资料：
+## Requirements
 
-- [智谱快速开始](https://docs.bigmodel.cn/cn/guide/start/quick-start)
-- [免费模型 GLM-4-Flash-250414](https://docs.bigmodel.cn/cn/guide/models/free/glm-4-flash-250414)
-- [ReAct 原论文](https://arxiv.org/abs/2210.03629)
+- Python 3.9 or later
+- VS Code with the Jupyter extension, Jupyter Notebook, or JupyterLab
+- An internet connection and a Zhipu API key for the live model run
 
-## 学习目标
+The notebook uses only the Python standard library. You do not need to install any other package.
 
-完成后，学生应该能够：
+## Running the notebook
 
-- 区分一次性 Direct inference 与 ReAct 循环；
-- 解析 `Calculate[...]` 和 `Finish[...]`；
-- 将工具结果作为 Observation 放回上下文；
-- 根据 Observation 动态选择下一步 Action；
-- 使用步数预算、工具白名单和 Finish verifier 防止假成功。
+Open `Introduction_ReAct_Learner.ipynb` and select a Python kernel. Run the cells from top to bottom.
 
-## 项目结构
+For the first run, use the offline client:
+
+```python
+USE_REAL_API = False
+```
+
+This mode does not call an API and produces a fixed trace, which is useful for checking your code.
+
+After the offline version passes, you may try the live model:
+
+```python
+USE_REAL_API = True
+```
+
+The default model is `glm-4-flash-250414`. Live model traces may differ from the offline trace.
+
+## Setting the API key
+
+### Get a Zhipu API key
+
+1. Go to the [Zhipu AI Open Platform](https://bigmodel.cn/) and register or sign in with a phone number or email address.
+2. Open the [**API Keys** page](https://bigmodel.cn/apikey/platform) from your account dashboard.
+3. Select **New API Key** to create a key for your account.
+4. Copy the key and store it safely. Do not post it in a chat, commit it to a repository, include it in a screenshot, or save it in the notebook you submit.
+
+The recommended method is to start VS Code from a terminal where `ZAI_API_KEY` is set.
+
+Linux or macOS:
+
+```bash
+export ZAI_API_KEY="your API key"
+```
+
+Windows PowerShell:
+
+```powershell
+$env:ZAI_API_KEY="your API key"
+```
+
+If VS Code is already open, close it before running these commands. It must be started from the same terminal to receive the environment variable.
+
+If the environment variable is not set, the notebook uses `getpass()` to request the key temporarily. The input is hidden and is not printed in the notebook output. If no input field appears in VS Code, use the environment variable method and restart the kernel.
+
+Do not place an API key in:
+
+- a normal Python string;
+- a `%env` cell;
+- an `os.environ[...]` assignment;
+- the README or a screenshot;
+- the notebook you submit.
+
+Restart the kernel after the live test so that the key is removed from the current Python process.
+
+Zhipu's API quick-start guide is available at [docs.bigmodel.cn](https://docs.bigmodel.cn/cn/guide/start/quick-start).
+
+## Suggested workflow
+
+1. Set `USE_REAL_API = False`.
+2. Run the Direct section and inspect its one-shot answer.
+3. Run the verifier and calculator checks.
+4. Complete the three reasoning functions.
+5. Run the ReAct loop.
+6. Read each Action, Observation, and Reflection in the printed trace.
+7. Check that the final result contains `pass=True`.
+8. If time allows, switch to `USE_REAL_API = True` and compare the live trace.
+
+## Completion check
+
+Your offline run should show that:
+
+- the Direct result does not pass the final check;
+- the initial plan is sent to `VerifyPlan`;
+- at least one invalid plan produces a Reflection;
+- a revised plan passes `VerifyPlan`;
+- the final cost comes from `Calculate`;
+- `Finish` returns a complete JSON object;
+- the final ReAct result shows `pass=True`.
+
+The live model may try different venues or take a different number of steps. It still needs to respond to verifier feedback, verify the final plan, calculate the cost, and finish within the step limit.
+
+## Common problems
+
+### `complete_prompt_TODO`, `complete_few_shot_TODO`, or `complete_reflection_TODO`
+
+One of the three functions is still empty or returns the wrong type. Check the function named in the message.
+
+### The model leaves fields out of `VerifyPlan`
+
+Make the system prompt, few-shot example, and Reflection state that every proposal must contain `venue`, `start`, and `rent_projector`.
+
+### The run ends with `max_steps`
+
+Check whether the model is repeating a venue that has already failed. Your Reflection should use the verifier feedback to prevent the same mistake from being proposed again.
+
+### The JSON cannot be parsed
+
+Use double quotes around JSON keys and strings. JSON Boolean values must be lowercase: `true` and `false`. Each model turn should contain only one Action.
+
+### The live model takes a different path
+
+This is expected. The live run does not need to match the offline trace step by step. Focus on whether the agent uses the feedback and reaches a valid result.
+
+## Submission
+
+Submit only the completed notebook:
 
 ```text
-course_code/
-├── main.py              # Direct / ReAct / Compare 入口
-├── zhipu_client.py      # 智谱 HTTP API 客户端
-├── direct_agent.py      # 一次直推基线
-├── react_agent.py       # 完整参考实现
-├── react_starter.py     # 学生 TODO 版本
-├── tools.py             # 安全计算器
-├── task.py              # 两种模式看到的同一道题
-├── grader.py            # 答案与过程评分
-├── mock_client.py       # 免费离线演示
-├── tests/               # 离线单元测试
-└── INSTRUCTOR_NOTES.md  # 教师答案与课堂安排
+Introduction_ReAct_Learner.ipynb
 ```
 
-如果不希望学生提前看到答案，分发时可移除 `react_agent.py`、
-`INSTRUCTOR_NOTES.md`，并隐藏 `grader.py` 中的预期答案。
+Before submitting, check that:
 
-## 环境与 API Key
-
-要求 Python 3.10 或更高版本。项目只使用标准库，不需要安装第三方依赖。
-
-```bash
-cd /home/yiyunzhou/course/course_code
-export ZAI_API_KEY="你的 API Key"
-export ZAI_MODEL="glm-4-flash-250414"
-```
-
-不要把真实 API Key 写入代码、README、截图或 Git 仓库。
-
-## 零费用离线检查
-
-```bash
-python3 main.py --mode compare --offline
-python3 -m unittest discover -s tests -v
-```
-
-预期结果：Direct 失败；ReAct 用 3 个回合完成两次计算并得到 `PASS — 12/12`。
-
-### 真实 GLM-4-Flash 验证（2026-08-06）
-
-首次运行时，模型连续输出数学习惯写法
-`20250807^123457 % 1000000`，而安全计算器只接受 `pow(...)`，因此在 6 步后失败。
-这一次失败尚未进入 Finish，不是 JSON 解析问题。
-
-在 Harness 中增加受限的 `base^exponent % modulus` 转换后重试：
-
-- Direct 输出格式正确但结果错误的 `{"answer":"826085"}`，得到 `2/10`；
-- ReAct 第 1 轮得到 `730807`，第 2 轮得到 `156003`；
-- 第 3 轮输出 `Finish[{"answer":"156003"}]`，JSON 成功解析，最终 `12/12`。
-
-两次真实轨迹保存在 `runs/math_live.json` 和
-`runs/math_live_retry1.json`，其中不包含 API Key。
-
-## 运行真实模型
-
-先运行一次性基线：
-
-```bash
-python3 main.py --mode direct
-```
-
-再运行 ReAct：
-
-```bash
-python3 main.py --mode react --max-steps 6
-```
-
-同时比较并保存轨迹：
-
-```bash
-python3 main.py --mode compare --max-steps 6 \
-  --trace-out runs/comparison.json
-```
-
-轨迹文件包含模型输出、Action、Observation 和评分，不保存 API Key。
-
-## 学生编码任务
-
-不要先看 `react_agent.py`。打开 `react_starter.py`，完成三个 TODO。
-
-### TODO 1：定义 Action 协议
-
-系统提示必须规定：
-
-- 每轮只允许一个 Action；
-- `Calculate[numeric expression]` 调用计算器；
-- `Finish[{"answer":"......"}]` 提交答案；
-- 必须先计算 S，根据 Observation 判断奇偶，再计算相应分支。
-
-### TODO 2：实现循环
-
-每轮调用模型、解析 Action、执行白名单工具，并把结果作为新的 Observation
-追加到 messages。不要使用 `eval()` 执行模型生成的内容。
-
-### TODO 3：实现可靠停止
-
-只有在两阶段计算均完成且答案通过固定验证时，才能接受 Finish；否则把错误作为
-Observation 返回模型继续修正。达到 6 步预算后必须停止。
-
-运行学生版本：
-
-```bash
-python3 main.py --mode react --implementation starter --offline
-python3 main.py --mode react --implementation starter
-```
-
-## 参考轨迹
-
-```text
-Thought: I first need the exact seed before choosing a branch.
-Action: Calculate[pow(20250807,123457,1000000)]
-Observation: 730807
-
-Thought: S is odd, so I must use the odd branch.
-Action: Calculate[(730807 * 2025 + 271828) % 1000000]
-Observation: 156003
-
-Thought: The second observation is the exact final code.
-Action: Finish[{"answer":"156003"}]
-```
-
-安全计算器支持基本算术、三参数 `pow(base, exponent, modulus)`，以及弱模型常用的
-`base^exponent % modulus` 模幂简写；文件操作、模块导入、
-任意函数调用以及会产生巨大中间数的普通幂运算都会被拒绝。
+- the notebook runs from top to bottom;
+- the final ReAct result shows `pass=True`;
+- all three reasoning functions are complete;
+- no API key appears in the file or its outputs.

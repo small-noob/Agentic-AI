@@ -1,2 +1,0 @@
-# No third-party Python package is required.
-# The project calls Zhipu's OpenAI-compatible HTTP endpoint with urllib.
