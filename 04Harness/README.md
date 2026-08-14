@@ -38,7 +38,7 @@ it before you read any further here.
 
 ### The three things you submit
 
-Everything happens in `Harness_Lab.ipynb`. Three cells are marked TODO:
+Everything happens in `Harness_Lab_Learner.ipynb`. Three cells are marked TODO:
 
 | | What | Where |
 | --- | --- | --- |
@@ -80,7 +80,7 @@ Agentic-AI/
 └── 04Harness/    ← open the notebook from here
 ```
 
-Open `Harness_Lab.ipynb`, select a Python kernel, and run the setup cell. It
+Open `Harness_Lab_Learner.ipynb`, select a Python kernel, and run the setup cell. It
 prints the two folder paths it found. If it raises instead, it tells you which
 folder is missing — nothing else in the notebook will work until it prints.
 
@@ -311,7 +311,7 @@ It never contains your API key.
 
 ### Submit
 
-`Harness_Lab.ipynb`, run top to bottom with its output saved. Before you submit,
+`Harness_Lab_Learner.ipynb`, run top to bottom with its output saved. Before you submit,
 check that the `full` run shows `30/30`, that all three TODO cells are complete,
 and that no API key appears anywhere in the file or its outputs.
 
