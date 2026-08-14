@@ -50,7 +50,7 @@ the skill loader — is not copied here at all: `lesson2.py` puts `../02Tools` o
 the import path and this lesson imports those modules from there, exactly as
 lesson 3 does. Keep the lesson folders side by side.
 
-If you prefer a notebook, `Harness_Lab.ipynb` is the same three TODOs with the
+If you prefer a notebook, `Harness_Lab_Learner.ipynb` is the same three TODOs with the
 runs and the grader wired up cell by cell. Either route is fine; the graded
 artefact is `starter_harness.py`.
 
