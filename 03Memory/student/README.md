@@ -12,10 +12,13 @@ without it a character-class estimator is used).
 
 ```bash
 cd 03Memory/student
-export ZAI_API_KEY="your key"        # macOS/Linux;  ZHIPU_API_KEY also works
-$env:ZAI_API_KEY="your key"          # Windows PowerShell
 jupyter lab                          # open Memory_Lab_Learner.ipynb
 ```
+
+The setup cell asks for your API key in a **hidden prompt** — paste it there
+and it stays in the kernel's memory only. (Setting `ZAI_API_KEY` /
+`ZHIPU_API_KEY` in your shell before starting Jupyter also works and skips
+the prompt.)
 
 **Never put a real API key in a cell, a file, a screenshot, or a Git
 repository.** The 6-point write-gate item in Part B is this exact rule,

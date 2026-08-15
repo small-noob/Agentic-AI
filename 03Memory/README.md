@@ -30,9 +30,11 @@ The lesson is one Jupyter notebook in two halves:
 
 ```bash
 cd 03Memory/student
-export ZAI_API_KEY="your key"        # or ZHIPU_API_KEY; never put it in a cell
 jupyter lab                          # open Memory_Lab_Learner.ipynb
 ```
+
+The notebook's setup cell asks for your API key in a hidden prompt — it
+stays in kernel memory, never in a cell or a file.
 
 Every model call is live (free GLM-4-Flash tier) — see `student/README.md`
 for details. Instructors start at `teacher/README_Teacher.md`.
