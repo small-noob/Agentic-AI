@@ -17,18 +17,15 @@ what reconcile did to the store:
     runs/final_memory.jsonl        the store after reconcile
     (STEP 4 build_context prints its ladder; the 20-point card ends the run)
 
-Run everything at once, or one TODO at a time - later steps read the earlier
-steps' files, so the chain survives across separate invocations:
+The notebook (Memory_Lab_Learner.ipynb) imports step1..step4 and runs them
+in-kernel against the methods you bound there - same files, same feedback.
+From a terminal the same steps run against the reference implementation:
 
-    python3 pipeline.py --implementation starter             # all four steps
-    python3 pipeline.py --implementation starter --step 1    # seed + TODO 1
-    python3 pipeline.py --implementation starter --step 2    # TODO 2 (no API)
-    python3 pipeline.py --implementation starter --step 3    # TODO 3
-    python3 pipeline.py --implementation starter --step 4    # TODO 4 + report card
+    python agent/pipeline.py --implementation solution            # all four
+    python agent/pipeline.py --implementation solution --step 1   # one at a time
 
 Every run calls the real API except step 2 (the gate never calls the model);
-export ZAI_API_KEY first. The deterministic mock is exercised by the test
-suite instead.
+export ZAI_API_KEY (or ZHIPU_API_KEY) first.
 """
 
 from __future__ import annotations
@@ -37,6 +34,10 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import bootstrap  # noqa: E402,F401  (puts the lesson folders on sys.path)
 
 from grader import grade_pipeline
 from memory_store import MemoryStore
@@ -44,10 +45,10 @@ from react_loop import ContextOverflow
 from sessions import (
     EXPECTED_EXTRACTED,
     FORBIDDEN_IN_MEMORY,
-    LESSON_ROOT,
     PIPELINE_BUDGET,
     PIPELINE_SYSTEM,
     SEED_MEMORY,
+    STUDENT_ROOT,
     TRANSCRIPT,
     TRANSCRIPT_SESSION_NO,
 )
@@ -55,7 +56,7 @@ from tokens import estimator_name
 from trace_display import BOLD, DIM, GREEN, RED, RESET, run_banner, verdict
 from zhipu_client import DEFAULT_MODEL, ZhipuClient
 
-RUNS_ROOT = LESSON_ROOT / "runs"
+RUNS_ROOT = STUDENT_ROOT / "runs"
 
 INITIAL_FILE = "0_initial_memory.jsonl"
 FINAL_FILE = "final_memory.jsonl"
@@ -71,7 +72,10 @@ LINEAGE = [INITIAL_FILE, *STEP_FILES.values(), FINAL_FILE]
 
 def make_policy(implementation: str, model: str):
     if implementation == "starter":
-        from memory_starter import MemoryPolicy as StarterPolicy
+        # The class the notebook binds your methods onto. From a plain
+        # terminal the methods are still unbound and each step says which
+        # TODO cell to answer.
+        from memory_policy import MemoryPolicy as StarterPolicy
 
         return StarterPolicy(model=model)
     from memory_agent import MemoryPolicy
@@ -154,7 +158,8 @@ def _feedback2(accepted: list, rejected: list) -> None:
         _fb(True, f"rejected {len(rejected)} candidate(s): {reasons}")
     else:
         _fb(None, "nothing was rejected this run - fine if extraction was "
-                  "clean; the mock channel (check.py) always offers bad candidates")
+                  "clean; the attack-set cell in the notebook is where the "
+                  "gate is always exercised")
 
 
 def _feedback3(store) -> None:
@@ -368,8 +373,8 @@ def main() -> None:
         else:
             step4(policy, client, args.budget)
     except NotImplementedError as exc:
-        print(f"\nStarter is incomplete: {exc}")
-        print("Finish that TODO, then run again - the steps run in order.")
+        print(f"\nNot answered yet: {exc}")
+        print("Open Memory_Lab_Learner.ipynb and work the TODO cells in order.")
 
 
 if __name__ == "__main__":

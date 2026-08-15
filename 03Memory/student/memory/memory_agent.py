@@ -1,12 +1,15 @@
-"""Reference implementation - remove before distributing to students.
+"""Harness-internal reference pipeline. NOT where you answer.
 
 Two things live here:
 
 * ``ToolsPolicy`` - Part A's baseline: when a session ends, keep nothing.
-* ``MemoryPolicy`` - the reference memory pipeline. Part A uses its
-  close_session (extract -> gate -> reconcile -> save); Part B's pipeline
-  drives all four methods directly. ``memory_starter.py`` re-implements
-  exactly these four methods as TODOs.
+* ``MemoryPolicy`` - the reference memory pipeline that Part A's memory demo
+  runs (extract -> gate -> reconcile -> save). Part B asks you to build these
+  same four methods yourself - in the notebook's TODO cells, not here.
+
+Reading this file before attempting the TODOs earns you nothing and shows
+immediately in the debrief; the notebook and its feedback blocks are the
+intended path.
 """
 
 from __future__ import annotations

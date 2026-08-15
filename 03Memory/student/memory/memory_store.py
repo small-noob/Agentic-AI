@@ -5,9 +5,9 @@ three independent agent runs with fresh contexts, so a store that lived only in
 a Python list would make "cross-session" a fiction. Because it is a file, you
 can also inspect it between sessions:
 
-    python3 main.py --mode memory --session 1
+    python agent/main.py --mode memory --session 1
     cat runs/memory.jsonl
-    python3 main.py --mode memory --session 2
+    python agent/main.py --mode memory --session 2
 
 A record:
 

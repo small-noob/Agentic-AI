@@ -9,16 +9,16 @@
              durable facts are extracted, gated and stored; session 2 starts
              with a [memory] block. PASSES.
 
-Every run calls the real Zhipu API: export ZAI_API_KEY first. The
-deterministic mock is exercised by the test suite (python3 -m unittest).
+Every run calls the real Zhipu API: export ZAI_API_KEY (or ZHIPU_API_KEY)
+first.
 
-    python3 main.py --mode compare            # both runs, one verdict table
-    python3 main.py --mode tools              # watch chapter 2's agent fail
-    python3 main.py --mode memory
-    python3 main.py --mode memory --session 1 # build the store, then look at it
-    python3 main.py --mode memory --session 2 # answer from the store on disk
+    python agent/main.py --mode compare            # both runs, one verdict table
+    python agent/main.py --mode tools              # watch chapter 2's agent fail
+    python agent/main.py --mode memory
+    python agent/main.py --mode memory --session 1 # build the store, then look at it
+    python agent/main.py --mode memory --session 2 # answer from the store on disk
 
-Part B (the four TODOs) lives in pipeline.py, not here.
+Part B (the four TODOs) lives in pipeline.py and the notebook, not here.
 """
 
 from __future__ import annotations
@@ -26,8 +26,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from dataclasses import asdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import bootstrap  # noqa: E402,F401  (puts the lesson folders on sys.path)
 
 from grader import finish_verifier, grade_demo
 from memory_agent import ToolsPolicy
@@ -36,8 +40,8 @@ from react_loop import DEFAULT_MAX_STEPS, run_sessions
 from sessions import (
     AGENT_SYSTEM_TEMPLATE,
     EXPECTED_ANSWER,
-    LESSON_ROOT,
     SESSIONS,
+    STUDENT_ROOT,
     WORKSPACE_ROOT,
     reset_workspace,
 )
@@ -46,7 +50,7 @@ from tools import build_agent_registry
 from trace_display import run_banner, summary_card
 from zhipu_client import DEFAULT_MODEL, ZhipuClient
 
-RUNS_ROOT = LESSON_ROOT / "runs"
+RUNS_ROOT = STUDENT_ROOT / "runs"
 
 
 def make_client():
@@ -55,7 +59,9 @@ def make_client():
 
 def make_memory_policy(implementation: str, model: str):
     if implementation == "starter":
-        from memory_starter import MemoryPolicy as StarterPolicy
+        # The class the notebook binds your methods onto - "starter" only
+        # works once the notebook's TODO cells have run in the same kernel.
+        from memory_policy import MemoryPolicy as StarterPolicy
 
         return StarterPolicy(model=model)
     from memory_agent import MemoryPolicy

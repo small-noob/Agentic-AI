@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-LESSON_ROOT = Path(__file__).resolve().parent
-WORKSPACE_ROOT = LESSON_ROOT / "workspace"
+# This file lives in student/tasks/; the workspace sits next to it, and the
+# run outputs (runs/) land at the student package root.
+STUDENT_ROOT = Path(__file__).resolve().parents[1]
+WORKSPACE_ROOT = Path(__file__).resolve().parent / "workspace"
 
 # ---------------------------------------------------------------------------
 # The workspace - Part A's on-disk half
@@ -197,7 +199,7 @@ SEED_MEMORY = [
 #   DELETE  "stop sending the report to security-team"
 #   NOOP    "the incident file is still incident_0812.txt"
 #   TODO 2  the pasted exporter config contains a credential; one sentence
-#           packs two facts; (the mock also emits a record with no value)
+#           packs two facts
 #   TODO 1  the assistant's own turn contains a wrong derived number - user
 #           turns only, or the pipeline poisons itself
 #   TODO 4  the paste is the L1 trim target; the whole transcript is the L2 one

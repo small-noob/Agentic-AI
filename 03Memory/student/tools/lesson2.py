@@ -1,13 +1,14 @@
-"""Make chapter 2's modules importable from chapter 3. Import this first.
+"""Make chapter 2's modules importable from chapter 3.
 
 02Tools/INSTRUCTOR_NOTES.md ends with a promise: "Later chapters import this
 module directly and register their own tools." This file is how that import
-works: it appends ``../02Tools`` to ``sys.path``.
+works: it appends ``../../02Tools`` to ``sys.path`` (this file lives in
+``03Memory/student/tools/``; 02Tools sits next to 03Memory in the repo root).
 
 Appending - not prepending - matters. Both chapters define ``grader``,
-``main``, ``tools``, ``mock_client`` and ``zhipu_client``; because 03Memory's
-own directory stays first on the path, those names keep resolving here. Only
-the modules that exist solely in 02Tools resolve there:
+``main``, ``tools`` and ``zhipu_client``; because chapter 3's own folders come
+first on the path (see ``student/bootstrap.py``), those names keep resolving
+here. Only the modules that exist solely in 02Tools resolve there:
 
     registry.py      the tool registry and call history
     sandbox.py       resolve_safe_path - the boundary every file tool crosses
@@ -23,7 +24,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-TOOLS_DIR = Path(__file__).resolve().parent.parent / "02Tools"
+TOOLS_DIR = Path(__file__).resolve().parents[3] / "02Tools"
 
 if not TOOLS_DIR.is_dir():
     raise ImportError(

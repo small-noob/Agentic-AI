@@ -172,10 +172,10 @@ def grade_pipeline(store, candidates: list, assembled, budget: int) -> Grade:
             feedback.append(f"TODO 1: expected fact {key!r} was never extracted")
 
     # ---- TODO 2 - the write gate: 6, all or nothing ---------------------
-    # The gate is judged against what it was actually OFFERED. The mock
-    # channel always offers a secret, a compound record and a malformed one;
-    # a live model sometimes extracts cleanly, and an idle gate on a clean
-    # run is not a failure. A leak is, always.
+    # The gate is judged against what it was actually OFFERED. A live model
+    # sometimes extracts cleanly, and an idle gate on a clean run is not a
+    # failure - the notebook's attack-set cell is where the gate is always
+    # exercised. A leak is a failure, always.
     def _rejectable(c) -> bool:
         if not isinstance(c, dict):
             return True

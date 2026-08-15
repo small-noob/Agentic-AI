@@ -78,7 +78,7 @@ class TokenDrift:
 
     def summary(self) -> str:
         if not self.samples:
-            return f"estimator={estimator_name()} (no provider usage seen; mock run)"
+            return f"estimator={estimator_name()} (no provider usage seen)"
         worst = max(self.samples, key=lambda s: abs(s[0] - s[1]))
         return (
             f"estimator={estimator_name()} n={len(self.samples)} "
