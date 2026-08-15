@@ -1,7 +1,7 @@
 # Instructor notes — not for distribution
 
 Companion to *Memory and Context Management*. The student-facing story is in
-`student/README.md` and the learner notebook; this file explains why the
+`README.md` and the learner notebook; this file explains why the
 lesson is shaped the way it is, what to protect when editing, and how to run
 the classroom. `Memory_Lab_Teacher.ipynb` is the learner notebook with the
 four TODO cells filled (every added line tagged `# [solution]`) and boxed
@@ -118,12 +118,11 @@ short of 20/20 fails.
 ## 7. Where the answers live
 
 The teacher notebook's filled TODO cells are the single source of the
-standard answer — there is no separate solution file, and nothing in the
-student package contains one. The student package does ship
-`memory/memory_agent.py`, the harness-internal reference that Part A's
-memory demo runs; it is unannotated and not shaped like the notebook
-answers, and its docstring tells students the notebook is the intended
-path. It cannot be removed: Part A and `--implementation solution` import it.
+standard answer — there is no separate solution file. The lesson does ship
+`memory_agent.py` next to the notebooks, the harness-internal reference that
+Part A's memory demo runs; it is unannotated and not shaped like the
+notebook answers, and its docstring tells students the notebook is the
+intended path. It cannot be removed: Part A imports it.
 
 ## 8. Suggested classroom plan (45–55 min)
 

@@ -1,0 +1,13 @@
+# The lab itself runs on the Python 3.10+ standard library. These two are the
+# classroom setup:
+#
+# jupyterlab runs the lab notebook (skip it if you open the notebook in
+# VS Code - there you only need ipykernel: pip install ipykernel).
+#
+# tiktoken is optional: it gives a closer token estimate than the built-in
+# character-class fallback. It is not GLM's tokenizer either, so the number is
+# still an estimate - which is the point of the drift line the harness prints
+# after every run. Without it everything works and reports
+# "estimator=charclass-fallback".
+jupyterlab>=4.0
+tiktoken>=0.7.0

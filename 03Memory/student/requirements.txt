@@ -1,9 +1,0 @@
-# Optional. Everything in this project runs on the Python 3.10+ standard library.
-#
-# tiktoken gives a closer token estimate than the built-in character-class
-# fallback. It is not GLM's tokenizer either, so the number is still an estimate -
-# which is the point of the drift line the harness prints after every run.
-#
-# Without it, `python3 main.py` works unchanged and reports
-# "estimator=charclass-fallback".
-tiktoken>=0.7.0
