@@ -30,6 +30,7 @@ The lesson is one Jupyter notebook in two halves:
 
 ```bash
 cd 03Memory/student
+pip install -r requirements.txt      # once per environment: jupyterlab + tiktoken
 jupyter lab                          # open Memory_Lab_Learner.ipynb
 ```
 
