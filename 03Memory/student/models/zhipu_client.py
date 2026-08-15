@@ -94,9 +94,9 @@ class ZhipuClient:
         api_key = os.getenv("ZAI_API_KEY") or os.getenv("ZHIPU_API_KEY")
         if not api_key:
             raise RuntimeError(
-                "Missing API key. Set ZAI_API_KEY in your shell; do not hard-code it. "
-                "(The zero-cost mock is exercised by the test suite: "
-                "python3 -m unittest discover -s tests)"
+                "Missing API key. Set ZAI_API_KEY (or ZHIPU_API_KEY) in your "
+                "shell before starting Jupyter; never hard-code a key in a "
+                "cell or a file."
             )
         return cls(api_key=api_key, endpoint=os.getenv("ZAI_BASE_URL", DEFAULT_ENDPOINT))
 
