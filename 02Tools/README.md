@@ -1,325 +1,217 @@
-# 02Tools — Assignment
+# Tools, Skills, and the Sandbox — In-Class Exercise
 
-## 1. What you are building
+In this exercise you give an agent the tools it needs to audit a month of door-access records, then watch what it still gets wrong and fix that with a written procedure. Lesson 1's agent had exactly one tool, a calculator, hard-coded into the loop. Here tools become a first-class thing: you write the text a model uses to choose between tools, you write a tool yourself, and you package a procedure as a reusable skill.
 
-You are giving an agent the tools it needs to **audit a month of door-access
-records**.
+Complete the exercise in [`Tools_Lab_Learner.ipynb`](./Tools_Lab_Learner.ipynb). This learner notebook is entirely in English and does not contain the reference implementation.
 
-In lesson 1 the agent had exactly one tool, a calculator, hard-coded into the
-loop. This time is different: **none of the data the task needs is in the
-prompt. It is all on disk.** The agent has to read files to get anywhere — so
-you will build that ability, and make sure those tools cannot be turned around
-and used to read things they should not.
+## Learning goals
 
-### The task
+By the end of the exercise, you should be able to:
 
-The workspace holds three files:
+- turn a plain function into a tool a model can discover and call;
+- explain why a tool's description, not its body, is its interface;
+- distinguish a tool (one atomic operation) from a skill (a packaged procedure);
+- explain why progressive disclosure makes a hundred skills affordable;
+- explain why a path check must run after `Path.resolve()`, not before.
 
-```text
-workspace/
-├── policy.json                 access policy: allowed hours, per-door clearance, violation rules, report-code formula
-├── employees.json              roster: badge_id → clearance level and status
-└── logs/access_2026-08.csv     raw swipe records (timestamp, badge_id, door, result)
-```
+## The audit problem
 
-The agent has to report three values:
+A badge system has been running for a month and now has to be audited. Three files sit in `workspace/`:
+
+| File | What it holds |
+| ---- | ------------- |
+| `policy.json` | allowed hours, per-door minimum clearance, the violation rules, the report-code formula |
+| `employees.json` | badge_id → clearance level and status |
+| `logs/access_2026-08.csv` | the raw swipe records: `timestamp, badge_id, door, result` |
+
+The agent must report three values:
 
 | Field | Meaning |
-| --- | --- |
+| ----- | ------- |
 | `suspect` | the badge_id with the most policy violations |
 | `violations` | the total number of violating records across all badges |
 | `code` | the six-digit report code defined in `policy.json` |
 
-**`policy.json` is the only authority on what counts as a violation and how the
-code is computed.** This handout does not repeat those rules — go read that file
-first.
+**None of that data is in the prompt.** Lesson 1 made arithmetic the thing you could not fake; this exercise makes it file I/O. An agent with no working file tools cannot even name the badge.
 
-### The four things you submit
+The difficulty is not arithmetic either. It is the cross-file join: the log alone cannot tell you whether a record is a violation, because that depends on the roster and the policy at the same time. `policy.json` is the only authority on what counts as a violation — read it before you start. This README does not repeat its rules.
 
-| | What | Which file |
-| --- | --- | --- |
-| TODO 1 | Write the path sandbox `resolve_safe_path` | `starter_tools.py` |
-| TODO 2 | Write the descriptions for the finished `read_file` / `write_file` | `starter_tools.py` |
-| TODO 3 | Write a `list_files` tool yourself | `starter_tools.py` |
-| TODO 4 | Write a `SKILL.md` audit procedure | `skills_starter/audit_access_log/SKILL.md` |
+## What you need to complete
 
-**Only those two files need to change.** Everything else is scaffolding.
+The notebook already provides the tool registry, the path sandbox, the calculator, the ReAct loop, the offline client and the grader. Your work is limited to three things.
 
----
+### TODO 1 — the descriptions for `read_file` and `write_file`
 
-## 2. Set up
+Both functions are already written. You do not change a line of their code. What is missing is the only part the model ever sees: the tool description and the description of each parameter.
 
-Python 3.10 or newer. Standard library only — nothing to install.
+The model never receives a function body. It receives the catalogue that `registry.describe()` assembles out of those strings, and it picks a tool and its arguments from that alone. Say what the tool is for, what the path is relative to, an example value, and what the ceiling on `max_bytes` is.
 
-```bash
-cd 02Tools
-python3 main.py --mode compare --offline
-```
+### TODO 2 — a `list_files` tool
 
-If you see `[NO SKILL] FAIL` and `[SKILL] PASS`, your environment is fine.
-`--offline` uses a built-in fake model: no cost, no API key. **You can keep it on
-for the entire assignment.**
-
-Only configure a key when you want to call the real model (never put it in code
-or a screenshot):
-
-```bash
-export ZAI_API_KEY="your API key"
-export ZAI_MODEL="glm-4-flash-250414"
-```
-
----
-
-## 3. Before you write anything, watch it fail
-
-```bash
-python3 main.py --mode noskill --offline
-```
-
-Read the whole output. You will see the agent's `Thought` / `Action` /
-`Observation` for every turn, and a 13/20 FAIL at the end.
-
-**Study what it got wrong. That is the raw material for TODO 4.**
-
-Then see what the reference implementation does:
-
-```bash
-python3 main.py --mode compare --offline
-```
-
-Same tools, 20/20 the second time. The only difference is that it loaded a
-written-down procedure. Reproducing that difference is the point of this
-assignment.
-
----
-
-## 4. TODO 1 — the path sandbox
-
-Open `starter_tools.py` and implement
-`resolve_safe_path(root, user_path, must_exist=False)`.
-
-Its job: turn an **untrusted** path into a real path inside the sandbox
-directory, and raise `SandboxError` if that path would escape.
-
-All three file tools go through it. It is the only door between the agent and
-the rest of your disk.
-
-### How to test it
-
-```bash
-python3 main.py --mode sandbox --implementation starter
-```
-
-Ten escape attempts get aimed at your function, and three legitimate requests
-must still go through. The output looks like this:
-
-```text
-[blocked] parent_traversal   ...
-[ESCAPED] symlink_to_file    escaped to /tmp/.../secrets.env    ← this line means you failed
---- these must still be allowed ---
-[allowed] existing_file      ...
-[REFUSED] workspace_root     ...                                ← so does this one
-```
-
-**To pass: all 10 `blocked`, all 3 `allowed`, score 6/6.**
-
-### Two warnings
-
-1. `if ".." in path` blocks 7 of the 10 — and scores **zero**. Ask yourself:
-   can a path contain no `..` at all and still point outside the sandbox?
-2. The opposite also scores **zero**: a function that only ever raises blocks
-   all 10 attacks. That is what the 3 "must be allowed" checks are for. A
-   sandbox's job is to **discriminate**, not to refuse.
-
-The function's docstring has more detailed hints.
-
----
-
-## 5. TODO 2 — write what the model reads
-
-Still in `starter_tools.py`, look at `read_file` and `write_file` inside
-`build_workspace_tools`.
-
-**Both functions are already written. You do not change a line of code.** What
-is missing is the only part the model ever sees — the tool and parameter
-descriptions:
-
-```python
-@registry.tool(
-    "TODO 2a: what does this tool do?",
-    path="TODO 2b: what goes in path? relative to what? give an example",
-    max_bytes="TODO 2c: what does max_bytes control, and what is the ceiling?",
-)
-def read_file(path: str, max_bytes: int = MAX_READ_BYTES) -> str:
-    ...  # already written
-```
-
-The model never sees the function body. It sees a catalogue assembled from those
-strings, and picks a tool and arguments from that alone. **The description is
-the interface.** Replace every `TODO 2x`.
-
-When you are done, print what the model actually gets and read it:
-
-```bash
-python3 -c "from starter_tools import build_workspace_tools; print(build_workspace_tools('workspace').describe())"
-```
-
-Read it as the model would: from this text alone, can you tell which tool fits
-which job, what each argument takes, and in what form? A tool described as
-"reads a file" is a tool the model will call with the wrong path.
-
----
-
-## 6. TODO 3 — write a tool yourself
-
-At the end of the same function, add a `list_files` tool:
+Write and register one tool yourself, so the model can discover the real filenames instead of guessing them:
 
 ```python
 def list_files(path: str = ".") -> str
 ```
 
-It lists the files and folders in a workspace directory, one per line, so the
-model can **discover** the real filenames instead of guessing them.
-Requirements:
+It must annotate its parameter, route `path` through `resolve_safe_path`, and raise `ToolError` rather than `SandboxError` when a path is rejected — the first becomes an Observation the model can correct, the second ends the run. Mark which entries are folders, and cap the number of entries.
 
-- register it with `@registry.tool(...)`, described as carefully as the two
-  above;
-- **annotate the parameter** — without a type hint the registry refuses to build
-  a schema and raises `TypeError`;
-- **route `path` through `resolve_safe_path`** — this is what TODO 1 was for;
-- raise **`ToolError`**, not `SandboxError`, when a path is rejected, so the
-  message reaches the model as an Observation it can correct instead of killing
-  the run;
-- marking which entries are folders saves the model a wasted call;
-- cap the number of entries with `MAX_LISTED_ENTRIES` so one huge folder cannot
-  flood the context.
+### TODO 3 — a `SKILL.md` audit procedure
 
-The two finished tools above show the shape. Copy the structure, not the text.
+Write the procedure that turns a well-equipped but aimless agent into one that gets the answer right. The file has two parts: frontmatter (`name` and `description`) that sits in every system prompt and must stay under 400 characters, and a body that is loaded only when the model calls `load_skill`.
 
-### Testing TODO 2 and 3
+Write it from the failing trace you produced in section 3, one line for every mistake you saw. **Never hard-code the answer in the body.** A skill is a procedure, not a lookup table — swap in a different log file and yours must still work.
 
-```bash
-python3 -m unittest discover -s tests -v
+You do not need to write the path sandbox. It is provided, and section 0 shows what it defends against.
+
+## Available actions
+
+The model may use one action per turn:
+
+```text
+Action: list_files
+Action Input: {"path": "."}
+
+Action: read_file
+Action Input: {"path": "policy.json"}
+
+Action: calculate
+Action Input: {"expression": "(11 * 9176 + 1005 * 31337) % 1000000"}
+
+Action: load_skill
+Action Input: {"name": "audit_access_log"}
+
+Action: finish
+Action Input: {"suspect":"Bxxxx","violations":0,"code":"xxxxxx"}
 ```
 
-The suite is your checklist: anything unfinished tells you exactly what is
-missing (for example `TODO 2: these tools still have placeholder
-descriptions`). **It starts red. All green means done.** Once you finish, it
-runs the same cases against your implementation and the reference one.
+Lesson 1 parsed a single shape, `Calculate[expr]`. With several tools an action needs a name *and* structured arguments, which is why the format changes here.
 
----
+The verifier in front of `finish` checks shape and process — that the files were read, that `calculate` produced the code, that the report was written. It never checks the answer against a stored key, because no real deployment has one.
 
-## 7. TODO 4 — write the SKILL.md
+## Requirements
 
-Open `skills_starter/audit_access_log/SKILL.md`.
+- Python 3.9 or later
+- VS Code with the Jupyter extension, Jupyter Notebook, or JupyterLab
+- An internet connection and a Zhipu API key only if you want the live model run
 
-**A tool is one thing the agent can do. A skill is the procedure for using
-those tools.** Your tools work now, but section 3 showed you what still happens:
-the agent skips a file, miscounts, and computes the wrong code. This step writes
-down how the task should be done and hands it over.
+The notebook uses only the Python standard library. You do not need to install any other package. Environment setup instructions are in [`../01Introduction/preclass_setup/`](../01Introduction/preclass_setup/).
 
-The file has two parts:
+## Running the notebook
 
-- **Frontmatter** (between the `---` lines): `name` and `description`. This part
-  goes into **every** system prompt, so it has to be short (under 400
-  characters) and has to say both what the skill does *and* when to use it.
-- **Body**: loaded only after the model judges the skill relevant and calls
-  `load_skill`. Spend length here — which files must be read, what exactly
-  counts as a violation, whether the thing being counted is records or reasons,
-  how the report code is computed.
+Open `Tools_Lab_Learner.ipynb` and select a Python kernel. Run the cells from top to bottom.
 
-That asymmetry is the whole point: a hundred skills cost a hundred catalogue
-lines up front, and the bodies are paid for only on demand.
+For the first run, use the offline client:
 
-### How to write it
-
-Go back to the `--mode noskill` output from section 3 and write one line in the
-body for **every mistake it made**. What did it skip? What did it miscount? Why
-did it miscount?
-
-**One hard rule: never hard-code the answer in the body.** A skill is a
-procedure, not a lookup table — swap in a different log file and your SKILL.md
-must still work. A line like `the suspect is B1005` fails the assignment.
-
-### How to test it
-
-```bash
-python3 main.py --mode skill --implementation starter --skills-dir skills_starter --offline
+```python
+USE_REAL_API = False
 ```
 
-Note `--skills-dir skills_starter`: without it you are running the reference
-answer, not yours.
+This mode does not call an API and produces a fixed trace, which is useful for checking your code. The whole exercise can be completed this way at no cost.
 
----
+After the offline version passes, you may try the live model:
 
-## 8. When everything is done
-
-Run these three in order. All three must pass:
-
-```bash
-python3 main.py --mode sandbox --implementation starter                                # expect 6/6
-python3 -m unittest discover -s tests -v                                               # expect all green
-python3 main.py --mode compare --implementation starter --skills-dir skills_starter    # expect 20/20
+```python
+USE_REAL_API = True
 ```
 
-The last one is the graded run. To see how the real model behaves, drop
-`--offline` and save the trace:
+The default model is `glm-4-flash-250414`. Live model traces may differ from the offline trace.
+
+## Setting the API key
+
+### Get a Zhipu API key
+
+1. Go to the [Zhipu AI Open Platform](https://bigmodel.cn/) and register or sign in with a phone number or email address.
+2. Open the [**API Keys** page](https://bigmodel.cn/apikey/platform) from your account dashboard.
+3. Select **New API Key** to create a key for your account.
+4. Copy the key and store it safely. Do not post it in a chat, commit it to a repository, include it in a screenshot, or save it in the notebook you submit.
+
+The recommended method is to start VS Code from a terminal where `ZAI_API_KEY` is set.
+
+Linux or macOS:
 
 ```bash
-python3 main.py --mode compare --implementation starter --skills-dir skills_starter \
-  --trace-out runs/my_run.json
+export ZAI_API_KEY="your API key"
 ```
 
-The trace holds the full model output, actions, observations, tool-call history
-and grades. It never contains your API key.
+Windows PowerShell:
 
-### Submit
+```powershell
+$env:ZAI_API_KEY="your API key"
+```
 
-- `starter_tools.py`
-- `skills_starter/audit_access_log/SKILL.md`
-- `runs/my_run.json` (if you ran the real model)
+If VS Code is already open, close it before running these commands. It must be started from the same terminal to receive the environment variable.
 
----
+If the environment variable is not set, the notebook uses `getpass()` to request the key temporarily. The input is hidden and is not printed in the notebook output.
 
-## 9. Grading (20 points)
+Do not place an API key in:
+
+- a normal Python string;
+- a `%env` cell;
+- an `os.environ[...]` assignment;
+- the README or a screenshot;
+- the notebook you submit.
+
+Restart the kernel after the live test so that the key is removed from the current Python process.
+
+## Suggested workflow
+
+1. Set `USE_REAL_API = False`.
+2. Run the setup and scaffolding cells.
+3. Run section 0 and read all thirteen lines of the sandbox report.
+4. Complete TODO 1, then read the tool catalogue the model receives.
+5. Complete TODO 2, and confirm `list_files` appears in that catalogue.
+6. Run section 3 and study the failing trace. Do not skip this — it is the material for TODO 3.
+7. Complete TODO 3.
+8. Run section 5 and check for `Score 20/20 — PASS`.
+9. If time allows, switch to `USE_REAL_API = True` and compare the live trace.
+
+## Completion check
+
+Your offline run should show that:
+
+- all 10 sandbox attacks are blocked and all 3 legitimate paths are served;
+- the tool catalogue contains no `TODO` text;
+- `list_files`, `read_file`, `write_file` and `calculate` all appear in the catalogue;
+- the NoSkill run reaches a confident, wrong answer;
+- the Skill run calls `load_skill` before anything else;
+- the final grade is `Score 20/20 — PASS`.
+
+The live model may read the files in a different order or take a different number of steps. It still needs to load the skill, read all three files, compute the code with `calculate`, write the report, and finish within the step limit.
+
+## Grading
 
 | Item | Points | How it is judged |
-| --- | --- | --- |
+| ---- | -----: | ---------------- |
+| Tools | 6 | descriptions written (2) + `list_files` registered and working (4) |
 | Answer | 8 | `suspect` 3, `violations` 3, `code` 2 |
 | Format | 2 | `Bxxxx` shape, integer, six digits |
 | Process | 4 | all three data files read, `calculate` used, report written, `load_skill` called |
-| Sandbox | 6 | all 10 attacks blocked and all 3 real paths served — **one leak and it is 0** |
 
-**Anything short of full marks on any item fails the assignment.**
+The process points are read off the tool-call history, so guessing the right answer earns nothing.
 
-The process points are read off the tool-call history, so guessing the right
-answer earns nothing. The sandbox item is all-or-nothing: a single escape means
-the agent can reach `secrets.env` outside `workspace/`.
+## Common problems
 
----
+### `[TODO 2] list_files is not registered yet`
 
-## 10. If you get stuck
+TODO 2 is still a stub. Until you register the tool, the agent's first action fails with `Unknown tool list_files` and the rest of the trace is noise.
 
-**Three attacks keep getting through the sandbox**
-The three with `symlink` in the name. Think about it: a symlink's *text* looks
-completely ordinary, but the place it points to is outside the sandbox. Is your
-check running on the path string, or on where that path really leads?
-`Path.resolve()` is worth a look in the docs.
+### `TypeError: Tool list_files parameter path needs a supported type hint`
 
-**`TypeError` when a tool is registered**
-A parameter is missing its type hint, or uses an unsupported type. Only `str`,
-`int`, `float` and `bool` are supported.
+The registry builds the model-facing schema from your type hints. Annotate every parameter. Only `str`, `int`, `float` and `bool` are supported.
 
-**The agent's `finish` keeps getting rejected**
-Read the rejection — it is specific. Before submitting, the agent has to have
-read enough files, computed the code with `calculate`, and written the report.
-That is deliberate: it is not allowed to guess.
+### The run ends with `max_steps`
 
-**The agent runs out of steps**
-`--max-steps` defaults to 12. First check whether some tool is failing on every
-call — every Observation is printed, so start from the first `Tool error`.
+Check whether one tool is failing on every call. Every Observation is printed, so start from the first `Tool error` and work forward.
 
-**You want to see the reference implementation**
-`sandbox.py`, `agent_tools.py` and `skills/audit_access_log/SKILL.md` are the
-answers to three of the TODOs, and `Tools_Lab_Solution.ipynb` is the solved
-notebook. Do not open them before you have written your own.
+### `finish` keeps getting rejected
+
+Read the rejection message — it is specific. Before it can submit, the agent has to have read enough files, computed the code with `calculate`, written the report, and loaded the skill.
+
+### The score stalls at 13/20 or 14/20
+
+The agent is answering without reading `employees.json`. That is the failure this exercise is built around: your SKILL.md body has to say, explicitly, that the log cannot decide a violation on its own.
+
+## Submitting
+
+Save and hand in the notebook with all cells run from top to bottom. If you also ran the live model, keep that output too and say so — a live trace that differs from the offline one is interesting, not a problem. Check that no API key appears anywhere in the saved output.
