@@ -16,19 +16,21 @@ The whole lab is one notebook, **`Memory_Lab_Learner.ipynb`**, in two halves:
 ## Files
 
 ```text
-Memory_Lab_Learner.ipynb   the lab — scaffolding, background and your four TODOs
+Memory_Lab_Learner.ipynb   the lab — background, Part A, and your four TODOs
 Memory_Lab_Teacher.ipynb   instructors only: answers filled + teaching notes
 README_Teacher.md          instructors only: design notes, grading, classroom plan
+memory_lab.py              all the machinery, sectioned and readable — not a TODO
 memory_agent.py            Part A's internal reference pipeline — do NOT open
                            before the debrief; Part B asks you to build exactly this
 workspace/                 three incident files (reset to canonical every session)
 runs/                      created at runtime — every step's output, inspectable
 ```
 
-The scaffolding the lab runs on (client, store, loop, grader, pipeline) is
-inlined in the notebook, one module per cell — there is nothing else to
-install or navigate. Chapter 2's registry, sandbox and calculator are
-imported from `../02Tools`: same files, no copies.
+The notebook teaches; `memory_lab.py` holds the gears — the API client, the
+store, the ReAct loop, the grader, the step pipeline, and chapter 2's
+sandboxed toolset (embedded verbatim since lesson 2 became notebook-only).
+The chapter is fully self-contained; open `memory_lab.py` when a TODO's spec
+names something.
 
 ## Setup
 
