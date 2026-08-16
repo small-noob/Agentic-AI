@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import re
 
-from react_loop import Assembled, ContextOverflow, extract_json_object
-from tokens import count_messages, count_tokens
+from memory_lab import (Assembled, ContextOverflow, count_messages,
+                        count_tokens, extract_json_object)
 
 # A single message longer than this is a candidate for trimming at L1.
 MAX_MESSAGE_TOKENS = 180

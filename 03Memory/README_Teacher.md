@@ -71,7 +71,13 @@ Reference end state: `fine_per_violation` 250 current / 200 superseded,
 
 Every TODO is three cells in the learner notebook: **① background →
 ② answer the TODO cell (it binds the method) → ③ run the step cell (live)
-and read the ✓/✗ feedback**. All green → next TODO; a red line names the
+and read the ✓/✗ feedback**. The TODO cells are fill-in-the-blank
+skeletons: the prompts are written by the student; the code is complete
+except for `____` blanks (4 + 5 + 6 + 7), each of which is one concept and
+one quizzable marking point. Credential shapes for the gate are provided in
+a table — recognising token formats is not what TODO 2 grades. An unfilled
+blank fails loudly: running the step raises `NameError: '____'` on the
+exact line. All green → next TODO; a red line names the
 fix. Each step saves its output under `runs/`
 (`0_initial_memory` → step files → `final_memory`) and later steps read the
 earlier steps' files, so every stage is inspectable, diffable, and the chain
