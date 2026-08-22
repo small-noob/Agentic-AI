@@ -205,11 +205,16 @@ def run_sandbox_check() -> dict[str, Any]:
         attacks = run_attacks(resolve_safe_path, root)
         legitimate = run_legitimate(resolve_safe_path, root)
     for row in attacks:
-        print(f"  [{'blocked' if row['blocked'] else 'ESCAPED':>7}] {row['attack']:<18} {row['detail']}")
+        status = "skipped" if row.get("skipped") else ("blocked" if row["blocked"] else "ESCAPED")
+        print(f"  [{status:>7}] {row['attack']:<18} {row['detail']}")
     print("  --- these must still be allowed ---")
     for row in legitimate:
         print(f"  [{'allowed' if row['allowed'] else 'REFUSED':>7}] {row['case']:<18} {row['detail']}")
-    ok = all(row["blocked"] for row in attacks) and all(row["allowed"] for row in legitimate)
+    staged = [row for row in attacks if not row.get("skipped")]
+    ok = all(row["blocked"] for row in staged) and all(row["allowed"] for row in legitimate)
+    if len(staged) != len(attacks):
+        print(f"  note: {len(attacks) - len(staged)} symlink attacks could not be staged "
+              f"on this platform and were not tested.")
     print(f"\n[SANDBOX] {'PASS' if ok else 'FAIL'}")
     return {"attacks": attacks, "legitimate": legitimate, "passed": ok}
 

@@ -176,7 +176,8 @@ class SandboxRegressionTests(unittest.TestCase):
             root = build_attack_workspace(Path(tmp))
             attacks = run_attacks(resolve_safe_path, root)
             legitimate = run_legitimate(resolve_safe_path, root)
-        self.assertTrue(all(row["blocked"] for row in attacks))
+        staged = [row for row in attacks if not row.get("skipped")]
+        self.assertTrue(all(row["blocked"] for row in staged))
         self.assertTrue(all(row["allowed"] for row in legitimate))
 
 

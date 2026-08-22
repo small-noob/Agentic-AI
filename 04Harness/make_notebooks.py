@@ -18,14 +18,16 @@ The notebooks are **self-contained**, because ``main`` ships nothing but the two
 notebooks, `skills/` and `workspace/` — no `.py` at all. That leaves two kinds of
 code to place, and they are placed differently on purpose:
 
-* what lesson 2 already taught (registry, sandbox, calculator, ReAct loop, skill
-  loader, client, red team) is **imported** from ``../02Tools`` by the setup
-  cell, exactly as ``lesson2.py`` does for the script package. It is not copied
-  into the notebook: a fix in chapter 2 has to be a fix here.
+Everything is **inlined**, one readable cell per module, in two groups:
+
+* what lesson 2 already taught (``sandbox``, ``calculator``, ``registry``,
+  ``zhipu_client``, ``skill_loader``, ``agent_tools``, ``agent``, ``redteam``),
+  vendored in ``lesson2_modules/``. These used to be imported from
+  ``../02Tools``; that lesson is notebooks-only now and ships no ``.py``, so
+  there is nothing left to import.
 * what only lesson 4 has (``task``, ``events``, ``actions``, ``audit_tool``,
   ``verifiers``, ``roles``, ``mock_client``, ``grader``, and the flows out of
-  ``main``) is **inlined**, one readable cell per module, because there is no
-  earlier chapter to import it from.
+  ``main``).
 
 Inlining into one flat namespace means the modules' imports *of each other* have
 to go — ``strip_local_imports`` does that — and that two modules must never
@@ -48,17 +50,28 @@ LESSON = pathlib.Path(__file__).resolve().parent
 INLINED = ("task", "events", "actions", "audit_tool", "verifiers", "roles",
            "mock_client", "grader")
 
+# Chapter 2's modules, which used to be imported from ``../02Tools`` until that
+# lesson became notebooks-only. They now live in ``lesson2_modules/`` and are
+# inlined ahead of lesson 4's own, in dependency order: each may only use names
+# the cells above it already defined.
+VENDORED = ("sandbox", "calculator", "registry", "zhipu_client", "skill_loader",
+            "agent_tools", "agent", "redteam")
+
 # From main.py, only the run flows and the printers. The argparse CLI stays
 # behind on the instructor branch; in a notebook the cells are the CLI.
 MAIN_FUNCTIONS = ("flow_single", "flow_pipeline", "flow_plan", "print_trace",
                   "print_grade", "run_sandbox_check")
 
 # Names that resolve to a cell above instead of to an import.
-DROPPED_IMPORTS = frozenset(INLINED) | {"lesson2", "main", "starter_harness", "harness"}
+DROPPED_IMPORTS = (frozenset(INLINED) | frozenset(VENDORED)
+                   | {"lesson2", "main", "starter_harness", "harness"})
 
 
 def module_source(name: str) -> str:
-    return (LESSON / f"{name}.py").read_text(encoding="utf-8")
+    for path in (LESSON / f"{name}.py", LESSON / "lesson2_modules" / f"{name}.py"):
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    raise SystemExit(f"{name}.py was not found in {LESSON} or its lesson2_modules/")
 
 
 def named_source(module: str, *names: str) -> str:
@@ -144,7 +157,8 @@ def check_no_collisions(sources: dict[str, str]) -> None:
 def scaffolding_cells() -> list[dict]:
     """One cell per lesson-4 module, plus the flows lifted out of main.py."""
 
-    sources = {name: strip_local_imports(module_source(name)) for name in INLINED}
+    sources = {name: strip_local_imports(module_source(name))
+               for name in VENDORED + INLINED}
 
     # A notebook has no ``__file__``; the setup cell worked the folder out already.
     anchor = "LESSON_ROOT = Path(__file__).resolve().parent"
@@ -159,6 +173,14 @@ def scaffolding_cells() -> list[dict]:
     check_no_collisions(sources)
 
     titles = {
+        "sandbox": "chapter 2's path boundary — resolve_safe_path",
+        "calculator": "chapter 2's AST-allow-list calculator",
+        "registry": "chapter 2's tool registry and call history",
+        "zhipu_client": "chapter 2's API client, and DEFAULT_MODEL",
+        "skill_loader": "chapter 2's skill discovery and the load_skill tool",
+        "agent_tools": "chapter 2's workspace tools — list, read, write, calculate",
+        "agent": "chapter 2's Action parser and ReAct loop",
+        "redteam": "chapter 2's sandbox attack suite, rerun here as a regression gate",
         "task": "the problem statement and what a correct run produces",
         "events": "the run log the grader reads",
         "actions": "the three services, and the three ways they fail",
@@ -331,10 +353,10 @@ def build(solution: bool) -> dict:
         Everything runs on the offline mock: no API key, no cost, deterministic.
         Read `{'README_Teacher.md' if solution else 'README.md'}` for the full handout.
 
-        This notebook is the whole package: the cells below carry every piece of
-        the harness except the parts you already built in lesson 2, which are
-        imported from `../02Tools` rather than copied. **Keep the lesson folders
-        side by side** and open this notebook from inside `04Harness`.
+        This notebook is the whole package: every piece of the harness is in the
+        cells below, including the registry, sandbox, calculator and ReAct loop
+        you built in lesson 2. Nothing to install, no other folder needed — open
+        it from inside `04Harness` and run it top to bottom.
         """),
 
         teacher("""
@@ -375,12 +397,11 @@ def build(solution: bool) -> dict:
         """),
 
         md("""
-        ## Setup · lesson 2, imported
+        ## Setup
 
-        The registry, the path sandbox, the calculator, the ReAct loop, the skill
-        loader and the red team are lesson 2's, unchanged. This lesson does not
-        ship its own copies — it puts `../02Tools` on the import path and imports
-        them, so a fix over there is a fix here.
+        Standard library only, and nothing to install. The cell below works out
+        which folder this notebook is in; everything else the lesson needs is
+        defined in the cells that follow it.
         """),
 
         code("""
@@ -389,35 +410,24 @@ def build(solution: bool) -> dict:
         from typing import Any
 
         def find_lesson_dir():
-            "04Harness: the folder holding workspace/policy.json and skills/."
+            "04Harness: the folder holding this lesson's workspace and skills."
+            # Fingerprint on a file only lesson 4 has. workspace/policy.json is
+            # not one: 02Tools ships that too, and matching it there would run
+            # the whole lesson against chapter 2's data without complaining.
+            marker = Path("workspace") / "notes" / "handover.txt"
             for base in (Path.cwd(), *Path.cwd().parents):
                 for candidate in (base, base / "04Harness"):
-                    if (candidate / "workspace" / "policy.json").is_file():
+                    if (candidate / marker).is_file():
                         return candidate.resolve()
-            raise SystemExit("Open this notebook from inside the 04Harness folder.")
+            raise SystemExit(
+                "Open this notebook from inside the 04Harness folder — the one "
+                f"holding {marker}."
+            )
 
         LESSON_DIR = find_lesson_dir()
-        TOOLS_DIR = LESSON_DIR.parent / "02Tools"
-        if not TOOLS_DIR.is_dir():
-            raise SystemExit(
-                "02Tools was not found next to 04Harness. This lesson imports "
-                "chapter 2's registry, sandbox, calculator and ReAct loop; keep "
-                "the lesson folders side by side."
-            )
-        if str(TOOLS_DIR) not in sys.path:
-            sys.path.append(str(TOOLS_DIR))
-
-        from agent import AgentResult, SKILLS_TEMPLATE, ToolAgent
-        from agent_tools import build_workspace_tools
-        from calculator import safe_calculate
-        from redteam import build_attack_workspace, run_attacks, run_legitimate
-        from registry import ToolError, ToolRegistry
-        from sandbox import SandboxError, relative_to_root, resolve_safe_path
-        from skill_loader import Skill, discover_skills, register_skill_tool, skill_index
-        from zhipu_client import DEFAULT_MODEL
 
         print("lesson 4 :", LESSON_DIR)
-        print("lesson 2 :", TOOLS_DIR, "(imported, not copied)")
+        print("python   :", sys.version.split()[0], "(3.10 or newer required)")
         """),
 
         md("""
@@ -945,11 +955,12 @@ def build(solution: bool) -> dict:
 
 
 def check_no_stray_imports(notebook: dict) -> None:
-    """No cell may import an inlined module — 02Tools would answer instead.
+    """No cell may import a module that is now inlined.
 
-    Both chapters define ``task``, ``grader``, ``main`` and ``mock_client``, and
-    ``../02Tools`` is on the path, so a surviving ``from task import X`` does not
-    fail: it quietly returns *lesson 2's* task. Catch it here instead.
+    Every name these modules used to import from each other is defined by an
+    earlier cell, so a surviving ``from task import X`` is at best redundant and
+    at worst resolves to something else entirely on a student's path. Catch it
+    here instead.
     """
 
     pattern = re.compile(r"^\s*(?:from|import)\s+(" + "|".join(sorted(DROPPED_IMPORTS)) + r")\b",
