@@ -309,9 +309,17 @@ Restart the kernel and run the notebook top to bottom. All of this must hold:
   `skipped` rather than blocked, and `PASS` still means every attack that could
   be staged was stopped. That is expected; you do not need to fix it.
 
-To watch a real model try, set `ZAI_API_KEY` before starting the kernel and
-swap the offline client for `ZhipuClient()` in the run cell — the class is
-defined in the `zhipu_client.py` cell, so no import is needed. Expect a bumpier
+To watch a real model try, set `ZAI_API_KEY` before starting the kernel, then
+swap the offline client in the run cell:
+
+```python
+ctx = new_context()
+outcome = flow_plan(ZhipuClient.from_env(), ctx, my_harness(), max_attempts=3)
+```
+
+`ZhipuClient` is defined in the `zhipu_client.py` cell, so no import is needed.
+Use `.from_env()` rather than `ZhipuClient()` — it reads `ZAI_API_KEY` for you
+and says so plainly if the variable is not set. Expect a bumpier
 ride than offline: `glm-4-flash-250414` completes this run most of the time but
 not every time, and the usual failure is an agent repeating one tool call until
 its step budget runs out. That is worth seeing once — it is the argument for a
