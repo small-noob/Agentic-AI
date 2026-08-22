@@ -50,11 +50,10 @@ Everything happens in `Harness_Lab_Learner.ipynb`. Three cells are marked TODO:
 role specs, the three services, the event log, the offline model and the grader
 are all there for you to read, and none of it is graded.
 
-The part you already know is not in the notebook at all. The registry, the path
-sandbox, the calculator, the ReAct loop and the skill loader are **lesson 2's
-files, imported** — the setup cell puts `../02Tools` on the import path and
-imports them from there. A fix in chapter 2 is a fix here, and there is no copy
-to drift out of date.
+The part you already know is in the notebook too, near the top: the registry,
+the path sandbox, the calculator, the ReAct loop, the skill loader and the red
+team are lesson 2's, one cell each, so you can read them again but do not have
+to rebuild them. Run those cells and move on.
 
 ### One thing you are *not* asked to do
 
@@ -71,28 +70,35 @@ deliberately does *not* fill in `manager_id` — see TODO 2 for why that matters
 Python 3.10 or newer. Standard library only — nothing to install. You need
 VS Code with the Jupyter extension, Jupyter Notebook, or JupyterLab.
 
-Because this lesson imports lesson 2's modules instead of shipping copies, the
-two folders have to sit side by side in the same checkout:
+The notebook is self-contained. It needs no other lesson folder and no other
+file besides the `workspace/` and `skills/` folders shipped next to it — open it
+from inside `04Harness` and everything it uses is defined in its own cells,
+including the registry, path sandbox, calculator and ReAct loop you wrote in
+lesson 2.
 
-```text
-Agentic-AI/
-├── 02Tools/      ← imported from, never modified
-└── 04Harness/    ← open the notebook from here
-```
+Open `Harness_Lab_Learner.ipynb`, select a Python kernel, and run the setup cell.
+It prints the folder it found and your Python version. If it raises instead, the
+notebook was opened from somewhere other than `04Harness`.
 
-Open `Harness_Lab_Learner.ipynb`, select a Python kernel, and run the setup cell. It
-prints the two folder paths it found. If it raises instead, it tells you which
-folder is missing — nothing else in the notebook will work until it prints.
-
-Then run the nine scaffolding cells (`Run All Above` from part 0 does it in one
-go). Everything runs against a built-in offline model: deterministic, no cost,
-no API key. **Keep it that way for the whole assignment.** Only configure a key
-if you want to watch a real model try, which the last section covers:
+Then run the scaffolding cells (`Run All Above` from part 0 does it in one go).
+Everything runs against a built-in offline model: deterministic, no cost, no API
+key. **Keep it that way for the whole assignment.** Only configure a key if you
+want to watch a real model try, which the last section covers:
 
 ```bash
+# macOS / Linux
 export ZAI_API_KEY="your API key"
-export ZAI_MODEL="glm-4-flash-250414"
+export ZAI_MODEL="glm-4-flash-250414"     # optional; this is the default
 ```
+
+```powershell
+# Windows PowerShell
+$env:ZAI_API_KEY = "your API key"
+$env:ZAI_MODEL   = "glm-4-flash-250414"   # optional; this is the default
+```
+
+Set them **before** starting the kernel — a kernel that is already running will
+not see them.
 
 Four runs matter, and they are the assignment in order:
 
@@ -298,8 +304,14 @@ Restart the kernel and run the notebook top to bottom. All of this must hold:
   every lesson which adds tools reruns the red team, and this lesson hands file
   tools to an investigator.
 
+  On Windows, three of the ten attacks need a symlink, and creating one requires
+  Developer Mode or an elevated shell. Without it those three are reported
+  `skipped` rather than blocked, and `PASS` still means every attack that could
+  be staged was stopped. That is expected; you do not need to fix it.
+
 To watch a real model try, set `ZAI_API_KEY` before starting the kernel and
-swap the offline client for `ZhipuClient()` in the run cell. Expect a bumpier
+swap the offline client for `ZhipuClient()` in the run cell — the class is
+defined in the `zhipu_client.py` cell, so no import is needed. Expect a bumpier
 ride than offline: `glm-4-flash-250414` completes this run most of the time but
 not every time, and the usual failure is an agent repeating one tool call until
 its step budget runs out. That is worth seeing once — it is the argument for a
@@ -339,9 +351,14 @@ nothing here. What you are being graded on is the machinery around it.
 ## 9. If you get stuck
 
 **The setup cell raises before anything runs**
-Either the notebook was opened from outside `04Harness`, or `02Tools` is not
-next to it. This lesson imports chapter 2's modules rather than copying them, so
-both folders have to be in the same checkout.
+The notebook was opened from somewhere other than `04Harness`. It looks for
+`workspace/notes/handover.txt` to find its own folder; open the notebook from
+the folder that holds it.
+
+**A cell fails with a syntax error on a type annotation**
+You are on Python 3.9 or older, which cannot read the `X | None` annotations
+these cells use. macOS ships 3.9 as its system `python3` — select a 3.10+ kernel
+in Jupyter.
 
 **`isolation 0/6` and I never gave the remediator `read_file`**
 Read the second half of the feedback line. It is probably the text, not the

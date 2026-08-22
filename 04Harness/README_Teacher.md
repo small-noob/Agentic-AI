@@ -8,19 +8,22 @@ answers. Section numbers below match the student handout's.
 
 | File | For | Contents |
 | --- | --- | --- |
-| `Harness_Lab_Learner.ipynb` | students | 34 cells, three of them TODO stubs |
-| `Harness_Lab_Teacher.ipynb` | you | those 34 cells in the same order, with the three TODOs filled in from the reference implementation, plus 6 blockquoted teaching notes |
+| `Harness_Lab_Learner.ipynb` | students | 42 cells, three of them TODO stubs |
+| `Harness_Lab_Teacher.ipynb` | you | those 42 cells in the same order, with the three TODOs filled in from the reference implementation, plus 6 blockquoted teaching notes |
 
 Apart from the title and the three TODO cells, every cell is byte-identical
 between the two. The 6 notes are *extra* cells, though, so **the two files' cell
 numbers do not line up** — in class refer to the part headings (part 0, part 1,
 …), which are the same in both.
 
-Both notebooks are **self-contained**: they carry every lesson-4 module inline,
-one readable cell per module, and import lesson 2's work rather than copying it.
+Both notebooks are **self-contained**: every module they use is inlined, one
+readable cell each — lesson 2's eight first, then lesson 4's nine. They need no
+other folder in the checkout and nothing installed. See *Where lesson 2's code
+went* below for why that changed.
 
 Run the teacher notebook top to bottom before class. It should give the ladder
-0 → 10 → 23 → 30, a green suite (30 tests) and `[SANDBOX] PASS`.
+0 → 10 → 23 → 30, a green suite (30 tests) and `[SANDBOX] PASS` — on Windows
+without Developer Mode, `PASS` with three symlink attacks reported `skipped`.
 
 ### Where these files come from
 
@@ -40,7 +43,8 @@ git checkout lesson-04-harness-solution -- 04Harness/Harness_Lab_Learner.ipynb \
 ```
 
 **Never merge the solution branch into `main`** — that would drag the whole `.py`
-package across, including `harness.py`. Copy the two generated files.
+package across, including `harness.py` and `lesson2_modules/`. Copy the two
+generated files.
 
 The solution branch also keeps the script package (`roles.py`, `actions.py`, …,
 `tests/`) and its CLI (`--mode single/pipeline/plan/full`, `--mode sandbox`,
@@ -68,24 +72,46 @@ Lesson 1 is a notebook ending in a three-action protocol
 is where that becomes a registry, and lesson 4 inherits it from there — lesson 1
 ships no `.py` files, so there is nothing to import from it.
 
-Eight modules are **imported** from `02Tools`, not copied: `registry.py`,
-`sandbox.py`, `calculator.py`, `skill_loader.py`, `zhipu_client.py`, `agent.py`,
-`agent_tools.py`, `redteam.py`. The setup cell appends `../02Tools` to
-`sys.path`. A fix in chapter 2 is a fix here, which a byte-for-byte copy could
-only approximate. The cost is that the lesson folders must sit side by side, and
-the setup cell says so with a clear message rather than a missing-module
-traceback. If a student's very first cell raises, this is why.
+### Where lesson 2's code went
 
-The suite reruns lesson 2's *actual* red team as a regression gate — the rule
-lesson 2's own notes ended on, and this lesson hands file tools to an
+Eight of lesson 2's modules are **inlined** into the notebooks, one cell each,
+ahead of lesson 4's own: `sandbox.py`, `calculator.py`, `registry.py`,
+`zhipu_client.py`, `skill_loader.py`, `agent_tools.py`, `agent.py`, `redteam.py`.
+
+This used to be an import. Until 2026-08-15 both notebooks put `../02Tools` on
+`sys.path` and imported those eight from there, so that a fix in chapter 2 was a
+fix here. Chapter 2 was then restructured to notebooks-only (c154598) and ships
+no `.py` at all, which broke this lesson at its first cell — the commit said so
+and left it to be dealt with here. 03Memory absorbed what it needed for the same
+reason; this is the same answer.
+
+The eight now live in `lesson2_modules/` on the solution branch, which is what
+the generator inlines from. They are chapter 2's files as of `c154598^`, with two
+deliberate changes:
+
+- **`redteam.py`** no longer dies where symlinks cannot be created. Creating one
+  on Windows needs Developer Mode or an elevated shell; without it the three
+  symlink attacks are reported `skipped` rather than counted as blocked, and the
+  other seven still have to pass. A student on stock Windows sees `PASS` with a
+  note, not `OSError: [WinError 1314]`.
+- **`zhipu_client.py`** reads `ZAI_MODEL`, which both handouts already told
+  students to export and nothing read.
+
+The cost of inlining is the one the old arrangement avoided: a fix in chapter 2
+is **no longer** automatically a fix here. If CX changes something in lesson 2
+that matters, it has to be brought across by hand. Worth raising with them —
+lesson 3 now carries the same debt.
+
+The suite still reruns lesson 2's red team as a regression gate, which is the
+rule lesson 2's own notes ended on, and this lesson hands file tools to an
 investigator.
 
-The one file that is not byte-identical to lesson 2's is
-`skills/audit_access_log/SKILL.md`, and the diff is the point. Its counting half
-is unchanged; its reporting half had to be rewritten because the downstream
-consumer changed. Worth putting on screen: **a procedure's tail is owned by
-whoever consumes its output.** Students do not write it here — the investigator
-loads it at run time, so it is data, not an answer.
+`skills/audit_access_log/SKILL.md` is lesson 2's procedure with its reporting
+half rewritten, because the downstream consumer changed. Worth putting on screen:
+**a procedure's tail is owned by whoever consumes its output.** Students do not
+write it here — the investigator loads it at run time, so it is data, not an
+answer. (Lesson 2 no longer ships a reference copy to compare against; it was
+removed when that lesson stopped handing out the answer to its last TODO.)
 
 ## §3 · Why the multi-agent split is not decorative
 
@@ -145,8 +171,9 @@ most persuasive thing in the lesson.
    Observation. An open schema is a channel. Live pipeline runs went from 6/30 to
    10/30 across the board after this.
 2. *Check authority downstream.* `validate_plan` requires every action to be one
-   the badge's *reasons* map to, and `tests/test_plan.py` carries exactly the
-   injected task as a case that must be rejected. This is why the `full` run
+   the badge's *reasons* map to, and `tests/test_plan.py` on the solution branch
+   (inlined into the notebooks' part 5 suite) carries exactly the injected task
+   as a case that must be rejected. This is why the `full` run
    scored 30/30 even in runs where the artefact was corrupted.
 
 The general shape is worth saying out loud: a tool subset stops a role doing what
@@ -272,7 +299,7 @@ A submitted `Harness_Lab_Learner.ipynb`, restarted and run top to bottom:
 | part 3, `max_attempts=1` | `23/30` |
 | part 3, `max_attempts=3` | `30/30`, five tasks `ok` and one `terminal` |
 | part 5 suite | 30 tests, all green |
-| red-team cell | `[SANDBOX] PASS` |
+| red-team cell | `[SANDBOX] PASS` (on Windows, three symlink attacks may read `skipped` — still a pass) |
 
 and no API key anywhere in the source or the saved output. The three checklist
 tests in the suite stay red until all three parts exist, so a green suite is a
@@ -411,7 +438,8 @@ graded run.
 - `roles.py` — the role table pattern: prompt, tool subset, finish verifier.
 - `actions.py` — the fault-injection shape, if a later lesson needs unreliable
   downstream services.
-- The eight lesson 2 modules, still unmodified.
+- The eight lesson 2 modules in `lesson2_modules/`, now vendored here rather
+  than imported from `02Tools`.
 
 ### Regenerating the dataset
 
